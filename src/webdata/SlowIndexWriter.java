@@ -1,8 +1,13 @@
 package webdata;
-import com.sun.jdi.IntegerType;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
+
 
 public class SlowIndexWriter {
     /**
@@ -11,85 +16,75 @@ public class SlowIndexWriter {
      * dir is the directory in which all index files will be created
      * if the directory does not exist, it should be created
      */
-    private static String usingBufferedReader(String filePath)
-    {
-        StringBuilder contentBuilder = new StringBuilder();
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath)))
-        {
+    InvertedIndex productIdIndex;
+    InvertedIndex wordsIndex;
+    ReviewsIndex reviewsIndex;
+    int reviewId;
 
-            String sCurrentLine;
-            while ((sCurrentLine = br.readLine()) != null)
-            {
-                contentBuilder.append(sCurrentLine).append("\n");
-            }
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-        }
-        return contentBuilder.toString();
+    public SlowIndexWriter() {
+        this.productIdIndex = new InvertedIndex();
+        this.wordsIndex = new InvertedIndex();
+        this.reviewsIndex = new ReviewsIndex();
+        this.reviewId = 0;
     }
+
     public void slowWrite(String inputFile) {
+        parseFile(inputFile);
+        writeIndexFiles();
+    }
+
+    private void writeIndexFiles() {
+        productIdIndex.write();
+        wordsIndex.write();
+        reviewsIndex.write();
+    }
+
+    private void parseFile(String inputFile) {
         File file = new File(inputFile);
-
-
-        Map<String, List<Integer>> productIdIndex  = new Hashtable<String, List<Integer>>();
-        Map<String, List<Integer>> wordsIndex  = new Hashtable<String, List<Integer>>();
-        List<Integer> helpNumeratorPerReview = new ArrayList<>();
-        List<Integer> helpDenumeratorPerReview = new ArrayList<>();
-        List<Double> scorePerReview = new ArrayList<>();
-        List<Integer> lengthPerReview = new ArrayList<>();
-
-
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
-            int reviewId = 0;
+            ReviewData review = new ReviewData();
             while ((line = br.readLine()) != null) {
-                StringTokenizer tokenizer = new StringTokenizer(line,":(),-'!\". ");
+                if (line.equals("")){
+                    continue;
+                }
 
-                while(tokenizer.hasMoreTokens() && reviewId < 3)
-                    {
-                        String firstToken = tokenizer.nextToken();
-                        String token;
-                        switch (firstToken)
-                        {
-                            case "product/productId":
-                                System.out.println("product/productId");
-                                reviewId += 1;
-                                token = getToken(tokenizer);
-                                updateIndex(token, reviewId, productIdIndex);
-                                break;
-                            case "review/score":
-                                System.out.println("review/score");
-                                int num = Integer.parseInt(getToken(tokenizer));
-                                int dec = Integer.parseInt(getToken(tokenizer));
-                                double score = num + (dec*0.1);
-                                scorePerReview.add(score);
-                                break;
-                            case "review/helpfulness":
-                                System.out.println("review/helpfulness");
-                                token = getToken(tokenizer);
-                                String[] split = token.split("/");
-                                helpNumeratorPerReview.add(Integer.parseInt(split[0]));
-                                helpDenumeratorPerReview.add(Integer.parseInt(split[1]));
-                                break;
-                            case "review/text":
-                                System.out.println("review/text");
-                                int textLen = tokenizer.countTokens();
-                                while(tokenizer.hasMoreTokens()){
-                                    token = getToken(tokenizer);
-                                    updateIndex(token, reviewId, wordsIndex);
-                                    lengthPerReview.add(textLen);
-                                }
+                StringTokenizer tokenizer = new StringTokenizer(line, ":(),-'!\". ");
+                String firstToken = tokenizer.nextToken();
+                String token;
 
-                                break;
-                            default:
-                                break;
+                switch (firstToken) {
+                    case "product/productId":
+                        this.reviewId += 1;
+                        token = getToken(tokenizer);
+                        productIdIndex.updateIndex(token, reviewId);
+                        review.productId = token;
+                        break;
+                    case "review/score":
+                        int num = Integer.parseInt(getToken(tokenizer));
+                        int dec = Integer.parseInt(getToken(tokenizer));
+                        review.score = num + (dec * 0.1);
+                        break;
+                    case "review/helpfulness":
+                        token = getToken(tokenizer);
+                        String[] split = token.split("/");
+                        review.helpfulnessNumerator = Integer.parseInt(split[0]);
+                        review.helpfulnessDenominator = Integer.parseInt(split[1]);
+                        break;
+                    case "review/text":
+                        while (tokenizer.hasMoreTokens()) {
+                            token = getToken(tokenizer);
+                            wordsIndex.updateIndex(token, reviewId);
                         }
-                    }
+                        review.length = tokenizer.countTokens();
+                        reviewsIndex.put(reviewId, review);
+                        review = new ReviewData();
+                        break;
+                    default:
+                        break;
+                }
             }
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -98,25 +93,11 @@ public class SlowIndexWriter {
         return tokenizer.nextToken().toLowerCase();
     }
 
-    private void updateIndex(String token, int reviewId, Map<String, List<Integer>> indexMap) {
 
-        if(!indexMap.containsKey(token)){
-            indexMap.put(token, new ArrayList<Integer>());
-            indexMap.get(token).add((reviewId));
-        }
-        else {
-            List<Integer> postingList = indexMap.get(token);
-            Integer last = postingList.get(postingList.size() - 1);
-            if (!postingList.contains(reviewId))
-            {
-                indexMap.get(token).add((reviewId - last));
-
-            }
-        }
-    }
 
     /**
      * Delete all index files by removing the given directory
      */
-    public void removeIndex(String dir) {}
+    public void removeIndex(String dir) {
+    }
 }
