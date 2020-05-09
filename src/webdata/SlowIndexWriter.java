@@ -4,20 +4,21 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 
 
 public class SlowIndexWriter {
+    private static final int BLOCK_SIZE = 4;
+    private static final String WORDS_LEX_FILENAME = "words_lex.txt";
+    private static final String PRODUCTS_LEX_FILENAME = "products_lex.txt";
     /**
      * Given product review data, creates an on disk index
      * inputFile is the path to the file containing the review data
      * dir is the directory in which all index files will be created
      * if the directory does not exist, it should be created
      */
-    InvertedIndex productIdIndex;
-    InvertedIndex wordsIndex;
+    Lexicon wordsLex, productsLex;
+    InvertedIndex productIdIndex, wordsIndex;
     ReviewsIndex reviewsIndex;
     int reviewId;
 
@@ -26,17 +27,21 @@ public class SlowIndexWriter {
         this.wordsIndex = new InvertedIndex();
         this.reviewsIndex = new ReviewsIndex();
         this.reviewId = 0;
+        this.productsLex = new Lexicon(BLOCK_SIZE);
+        this.wordsLex = new Lexicon(BLOCK_SIZE);
     }
 
-    public void slowWrite(String inputFile) {
+    public void slowWrite(String inputFile) throws IOException {
         parseFile(inputFile);
         writeIndexFiles();
     }
 
-    private void writeIndexFiles() {
+    private void writeIndexFiles() throws IOException {
         productIdIndex.write();
         wordsIndex.write();
         reviewsIndex.write();
+        wordsLex.createLexicon(WORDS_LEX_FILENAME);
+        productsLex.createLexicon(PRODUCTS_LEX_FILENAME);
     }
 
     private void parseFile(String inputFile) {
@@ -45,39 +50,51 @@ public class SlowIndexWriter {
             String line;
             ReviewData review = new ReviewData();
             while ((line = br.readLine()) != null) {
-                if (line.equals("")){
+                if (line.equals("")) {
                     continue;
                 }
 
-                StringTokenizer tokenizer = new StringTokenizer(line, ":(),-'!\". ");
+                StringTokenizer tokenizer = new StringTokenizer(line, ":(),-'!\".<>+ $&");
                 String firstToken = tokenizer.nextToken();
                 String token;
 
                 switch (firstToken) {
                     case "product/productId":
                         this.reviewId += 1;
-                        token = getToken(tokenizer);
-                        productIdIndex.updateIndex(token, reviewId);
-                        review.productId = token;
+                        token = getProductIdToken(tokenizer);
+                        if (!token.isEmpty()) {
+                            productIdIndex.updateIndex(token, reviewId);
+                            productsLex.addTerm(token);
+                            review.productId = token;
+                        }
                         break;
                     case "review/score":
-                        int num = Integer.parseInt(getToken(tokenizer));
-                        int dec = Integer.parseInt(getToken(tokenizer));
-                        review.score = num + (dec * 0.1);
+                        token = getToken(tokenizer);
+                        if (!token.isEmpty()) {
+                            int num = Integer.parseInt(token);
+                            int dec = Integer.parseInt(getToken(tokenizer));
+                            review.score = num + (dec * 0.1);
+                        }
                         break;
                     case "review/helpfulness":
                         token = getToken(tokenizer);
-                        String[] split = token.split("/");
-                        review.helpfulnessNumerator = Integer.parseInt(split[0]);
-                        review.helpfulnessDenominator = Integer.parseInt(split[1]);
+                        if (!token.isEmpty()) {
+                            String[] split = token.split("/");
+                            review.helpfulnessNumerator = Integer.parseInt(split[0]);
+                            review.helpfulnessDenominator = Integer.parseInt(split[1]);
+                        }
                         break;
                     case "review/text":
                         while (tokenizer.hasMoreTokens()) {
                             token = getToken(tokenizer);
-                            wordsIndex.updateIndex(token, reviewId);
+                            if (!token.isEmpty()) {
+                                wordsIndex.updateIndex(token, reviewId);
+                                wordsLex.addTerm(token);
+                            }
                         }
                         review.length = tokenizer.countTokens();
                         reviewsIndex.put(reviewId, review);
+
                         review = new ReviewData();
                         break;
                     default:
@@ -90,9 +107,14 @@ public class SlowIndexWriter {
     }
 
     private String getToken(StringTokenizer tokenizer) {
-        return tokenizer.nextToken().toLowerCase();
+        String token = tokenizer.nextToken().toLowerCase();
+        token = token.replaceAll("[\\d/](<\\w>)*[�]*[\\s\t\b]*", "");
+        return token;
     }
 
+    private String getProductIdToken(StringTokenizer tokenizer) {
+        return tokenizer.nextToken().toLowerCase();
+    }
 
 
     /**
