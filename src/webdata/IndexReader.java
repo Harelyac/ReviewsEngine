@@ -33,7 +33,7 @@ public class IndexReader {
      * gets review at random access using the given review id
      * return exit code
      */
-    public boolean getReview(int reviewId){
+    public boolean readReview(int reviewId){
         String data;
         try
         {
@@ -72,7 +72,7 @@ public class IndexReader {
      */
     public String getProductId(int reviewId){
         if (reviewId != curr_review_id){
-            if(!getReview(reviewId)){
+            if(!readReview(reviewId)){
                 return null;
             }
         }
@@ -85,7 +85,7 @@ public class IndexReader {
      */
     public int getReviewScore(int reviewId) {
         if (reviewId != curr_review_id){
-            if(!getReview(reviewId)){
+            if(!readReview(reviewId)){
                 return -1;
             }
         }
@@ -97,7 +97,7 @@ public class IndexReader {
      */
     public int getReviewHelpfulnessNumerator(int reviewId) {
         if (reviewId != curr_review_id){
-            if(!getReview(reviewId)){
+            if(!readReview(reviewId)){
                 return -1;
             }
         }
@@ -109,7 +109,7 @@ public class IndexReader {
      */
     public int getReviewHelpfulnessDenominator(int reviewId) {
         if (reviewId != curr_review_id){
-            if(!getReview(reviewId)){
+            if(!readReview(reviewId)){
                 return -1;
             }
         }
@@ -121,7 +121,7 @@ public class IndexReader {
      */
     public int getReviewLength(int reviewId) {
         if (reviewId != curr_review_id){
-            if(!getReview(reviewId)){
+            if(!readReview(reviewId)){
                 return -1;
             }
         }
