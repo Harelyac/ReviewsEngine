@@ -41,10 +41,14 @@ public class Lexicon {
             }
         }
 
-
         BufferedWriter writer = new BufferedWriter(new FileWriter(filename));
         writer.write(lexStr.toString());
+        // FIXME - WHAT ABOUT WRITING THE WHOLE TALBE?
         writer.close();
+    }
+
+    public void read(){
+        // FIXME - reading the string and the whole table
     }
 
     private List<List<String>> convertMapToBlocks() {

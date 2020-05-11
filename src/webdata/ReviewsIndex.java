@@ -36,9 +36,4 @@ public class ReviewsIndex {
         }
     }
 
-
-    // here we read encoded data from disk, decode it and put it into java objects
-    public void read(){
-
-    }
 }

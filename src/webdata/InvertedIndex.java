@@ -21,7 +21,8 @@ public class InvertedIndex {
     // FIXME - + we need to use GroupVarint for decode and than writ it into disk
     public void write(Lexicon lex, int num) {
         int byte_offset = 0;
-        byte [] encoded_pl;
+        byte [] encoded_reveiwsIds, encoded_freqs;
+
         String [] files = {"PostingListsOfProductIDS.txt", "PostingListsOfWords.txt"};
 
         // first use posting list and update information into lexicon
@@ -36,10 +37,12 @@ public class InvertedIndex {
             lex.table.put(entry.getKey(), row);
 
             // here we write the current pl into some file
-            encoded_pl = GroupVarint.encode(entry.getValue().list);
+            encoded_reveiwsIds = GroupVarint.encode(entry.getValue().list);
+            encoded_freqs = GroupVarint.encode(new ArrayList<Integer>(entry.getValue().freq.values()));
             try {
                 RandomAccessFile file = new RandomAccessFile(files[num], "rw");
-                file.write(encoded_pl);
+                file.write(encoded_reveiwsIds);
+                file.write(encoded_freqs);
                 file.close(); // FIXME - change later a lot of open and closing
             }
             catch (IOException e){
@@ -47,7 +50,7 @@ public class InvertedIndex {
             }
 
             // here we actually encode and than increment offset for next term to load
-            byte_offset += encoded_pl.length;
+            byte_offset += encoded_reveiwsIds.length;
         }
 
     }

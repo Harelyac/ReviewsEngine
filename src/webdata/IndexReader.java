@@ -11,7 +11,7 @@ public class IndexReader {
     ReviewData curr_review;
     int curr_review_id;
     int number_of_reviews;
-
+    Lexicon lex;
 
 
     /**
@@ -22,6 +22,8 @@ public class IndexReader {
         curr_review = new ReviewData();
         curr_review_id = 0;
         number_of_reviews = 0;
+        lex = new Lexicon(4);
+        lex.read();
     }
 
 
@@ -130,8 +132,8 @@ public class IndexReader {
      * Returns 0 if there are no reviews containing this token
      */
     public int getTokenFrequency(String token) {
+        // FIXME need to relate table to string and do binary search
         return 0;
-
     }
     /**
      * Return the number of times that a given token (i.e., word) appears in
