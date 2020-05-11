@@ -7,28 +7,19 @@ import java.util.*;
 
 public class Lexicon {
     private final int k;
-    private final SortedMap<String, Map<String, Integer>> table = new TreeMap<>();
-    private final StringBuilder lexStr = new StringBuilder();
+    public final SortedMap<String, Map<String, Integer>> table;
+    private final StringBuilder lexStr;
 
     public Lexicon(int k) {
         this.k = k;
+        this.table = new TreeMap<>();
+        this.lexStr = new StringBuilder();
     }
 
-    public void addTerm(String term) {
-        if (!table.containsKey(term)) {
-            Map<String, Integer> row = new HashMap<>();
-            row.put("freq", 1);
-            row.put("length", term.length());
-            this.table.put(term, row);
-        }
-        else
-            {
-            int freq = table.get(term).get("freq") + 1;
-            table.get(term).put("freq", freq);
-        }
-    }
 
-    public void createLexicon(String filename) throws IOException {
+    // encoding lexicon keys and write it to a file
+    public void write(String filename) throws IOException {
+
         List<List<String>> blocks = convertMapToBlocks();
         String prefix, suffix , term;
         int length, gapSize;
@@ -50,7 +41,7 @@ public class Lexicon {
             }
         }
 
-//        Writing file
+
         BufferedWriter writer = new BufferedWriter(new FileWriter(filename));
         writer.write(lexStr.toString());
         writer.close();

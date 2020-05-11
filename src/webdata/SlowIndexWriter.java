@@ -37,11 +37,17 @@ public class SlowIndexWriter {
     }
 
     private void writeIndexFiles() throws IOException {
-        productIdIndex.write();
-        wordsIndex.write();
+        // writing reviews data to disk
         reviewsIndex.write();
-        wordsLex.createLexicon(WORDS_LEX_FILENAME);
-        productsLex.createLexicon(PRODUCTS_LEX_FILENAME);
+
+        // writing encoded posting lists to disk (before encoding lexicons - to get data on posting lists location on disk)
+        wordsIndex.write(wordsLex, 1);
+        productIdIndex.write(productsLex, 0);
+
+
+        // writing encoded lexicons to disk
+        wordsLex.write(WORDS_LEX_FILENAME);
+        productsLex.write(PRODUCTS_LEX_FILENAME);
     }
 
     private void parseFile(String inputFile) {
@@ -64,7 +70,6 @@ public class SlowIndexWriter {
                         token = getProductIdToken(tokenizer);
                         if (!token.isEmpty()) {
                             productIdIndex.updateIndex(token, reviewId);
-                            productsLex.addTerm(token);
                             review.productId = token;
                         }
                         break;
@@ -89,7 +94,6 @@ public class SlowIndexWriter {
                             token = getToken(tokenizer);
                             if (!token.isEmpty()) {
                                 wordsIndex.updateIndex(token, reviewId);
-                                wordsLex.addTerm(token);
                             }
                         }
                         review.length = tokenizer.countTokens();
@@ -108,7 +112,7 @@ public class SlowIndexWriter {
 
     private String getToken(StringTokenizer tokenizer) {
         String token = tokenizer.nextToken().toLowerCase();
-        token = token.replaceAll("[\\d/](<\\w>)*[�]*[\\s\t\b]*", "");
+        // token = token.replaceAll("[\\d](<\\w>)*[�]*[\\s\t\b]*", "");
         return token;
     }
 

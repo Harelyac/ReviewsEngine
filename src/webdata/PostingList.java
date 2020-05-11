@@ -22,6 +22,7 @@ public class PostingList {
             Integer count = freq.get(docId);
             freq.put(docId, count + 1);
         }
+
         else
         {
             int gap = docId - lastDocId;

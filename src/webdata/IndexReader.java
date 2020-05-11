@@ -1,48 +1,129 @@
 package webdata;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.Enumeration;
 
 public class IndexReader {
+    File file;
+    ReviewData curr_review;
+    int curr_review_id;
+    int number_of_reviews;
+
+
+
     /**
      * Creates an IndexReader which will read from the given directory
      */
-    public IndexReader(String dir) {}
+    public IndexReader(String dir) {
+        file = new File(dir);
+        curr_review = new ReviewData();
+        curr_review_id = 0;
+        number_of_reviews = 0;
+    }
+
+
+    /**
+     *
+     * @param reviewId
+     * gets review at random access using the given review id
+     * return exit code
+     */
+    public boolean getReview(int reviewId){
+        String data;
+        try
+        {
+            RandomAccessFile file = new RandomAccessFile("ReviewsData.txt", "rw");
+
+            // get number of reviews
+            if (number_of_reviews == 0) {
+                number_of_reviews = (int) (file.length() / 26);
+            }
+
+            // check review id range validity
+            if (reviewId < 0 || reviewId > number_of_reviews)
+            {
+                return false;
+            }
+
+            file.seek((reviewId - 1) * 26);
+            byte [] bytes = new byte[26];
+            file.read(bytes);
+            data = new String(bytes);
+            curr_review.initialize(data.split("\t")[0].split(","));
+            curr_review_id = reviewId;
+        }
+
+        catch (IOException e1)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     /**
      * Returns the product identifier for the given review
      * Returns null if there is no review with the given identifier
      */
     public String getProductId(int reviewId){
-        return null;
+        if (reviewId != curr_review_id){
+            if(!getReview(reviewId)){
+                return null;
+            }
+        }
+        return curr_review.productId;
+
     };
     /**
      * Returns the score for a given review
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewScore(int reviewId) {
-        return 0;
+        if (reviewId != curr_review_id){
+            if(!getReview(reviewId)){
+                return -1;
+            }
+        }
+        return (int)curr_review.score;
     }
     /**
      * Returns the numerator for the helpfulness of a given review
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewHelpfulnessNumerator(int reviewId) {
-        return 0;
+        if (reviewId != curr_review_id){
+            if(!getReview(reviewId)){
+                return -1;
+            }
+        }
+        return curr_review.helpfulnessNumerator;
     }
     /**
      * Returns the denominator for the helpfulness of a given review
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewHelpfulnessDenominator(int reviewId) {
-        return 0;
-
+        if (reviewId != curr_review_id){
+            if(!getReview(reviewId)){
+                return -1;
+            }
+        }
+        return curr_review.helpfulnessDenominator;
     }
     /**
      * Returns the number of tokens in a given review
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewLength(int reviewId) {
-        return 0;
-
+        if (reviewId != curr_review_id){
+            if(!getReview(reviewId)){
+                return -1;
+            }
+        }
+        return curr_review.length;
     }
     /**
      * Return the number of reviews containing a given token (i.e., word)
