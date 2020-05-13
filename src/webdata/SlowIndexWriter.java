@@ -9,8 +9,11 @@ import java.util.*;
 
 public class SlowIndexWriter {
     private static final int BLOCK_SIZE = 4;
-    private static final String WORDS_LEX_FILENAME = "words_lex.txt";
-    private static final String PRODUCTS_LEX_FILENAME = "products_lex.txt";
+    private static final String WORDS_STRING_FILENAME = "words_lex_string.txt";
+    private static final String PRODUCTS_STRING_FILENAME = "products_lex_string.txt";
+    private static final String WORDS_TABLE_FILENAME = "words_lex_table.ser";
+    private static final String PRODUCTS_TABLE_FILENAME = "products_lex_table.ser";
+
     /**
      * Given product review data, creates an on disk index
      * inputFile is the path to the file containing the review data
@@ -45,9 +48,9 @@ public class SlowIndexWriter {
         productIdIndex.write(productsLex, 0);
 
 
-        // writing encoded lexicons to disk
-        wordsLex.write(WORDS_LEX_FILENAME);
-        productsLex.write(PRODUCTS_LEX_FILENAME);
+        // writing encoded lexicons to disk (table without words + the big string)
+        wordsLex.write(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
+        productsLex.write(PRODUCTS_STRING_FILENAME, PRODUCTS_TABLE_FILENAME);
     }
 
     private void parseFile(String inputFile) {
@@ -112,7 +115,7 @@ public class SlowIndexWriter {
 
     private String getToken(StringTokenizer tokenizer) {
         String token = tokenizer.nextToken().toLowerCase();
-        // token = token.replaceAll("[\\d](<\\w>)*[�]*[\\s\t\b]*", "");
+        token = token.replaceAll("[\\/]*[\\d]*(<\\w>)*[\\/]*[\\s\t\b]*", "");
         return token;
     }
 

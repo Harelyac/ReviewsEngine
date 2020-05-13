@@ -1,17 +1,23 @@
 package webdata;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.util.Enumeration;
+import java.io.*;
+import java.util.*;
 
 public class IndexReader {
+    private static final String WORDS_STRING_FILENAME = "words_lex_string.txt";
+    private static final String PRODUCTS_STRING_FILENAME = "products_lex_string.txt";
+    private static final String WORDS_TABLE_FILENAME = "words_lex_table.ser";
+    private static final String PRODUCTS_TABLE_FILENAME = "products_lex_table.ser";
+
     File file;
     ReviewData curr_review;
     int curr_review_id;
     int number_of_reviews;
-    Lexicon lex;
+    TreeMap<String, Integer> index_table;
+    List<Map<String, Integer>> table;
+    String lexStr;
+    PostingList curr_posting_list; // load posting lists and frequencies
+
 
 
     /**
@@ -22,9 +28,60 @@ public class IndexReader {
         curr_review = new ReviewData();
         curr_review_id = 0;
         number_of_reviews = 0;
-        lex = new Lexicon(4);
-        lex.read();
+        index_table = new TreeMap<>();
     }
+
+
+    public void decodeTokens()
+    {
+        String prefix, raw_prefix;
+        String [] suffixes;
+        String block;
+        int curr_index = 0;
+        int start_block;
+        int end_block;
+
+        for (int i=0; i< this.table.size(); i+=4) {
+            block = this.lexStr.substring(this.table.get(i).get("term_location"), this.table.get(i+4).get("term_location"));
+            prefix = block.split("\\*")[0];
+            suffixes = block.split("\\*")[1].split("[^A-Za-z]{1,2}");
+
+            System.out.println(Arrays.toString(suffixes));
+            System.out.println(this.table.size());
+            this.index_table.put(prefix+suffixes[0], i);
+            this.index_table.put(prefix+suffixes[1], i+1);
+            this.index_table.put(prefix+suffixes[2], i+2);
+            this.index_table.put(prefix+suffixes[3], i+3);
+
+            //FIXME DEAL WITH REMAINDER
+        }
+    }
+
+
+
+    public boolean readLexicon(String lexStrFile, String lextableFile){
+        try
+        {
+            BufferedReader br = new BufferedReader(new FileReader(lexStrFile));
+            lexStr = br.readLine();
+        }
+        catch (Exception e1) {
+            e1.printStackTrace();
+        }
+
+        try {
+            FileInputStream fileIn = new FileInputStream(lextableFile);
+            ObjectInputStream objectIn = new ObjectInputStream(fileIn);
+            table = (List<Map<String, Integer>>) objectIn.readObject();
+        }
+        catch (Exception e1)
+        {
+            e1.printStackTrace();
+        }
+
+        return true;
+    }
+
 
 
     /**
@@ -132,8 +189,9 @@ public class IndexReader {
      * Returns 0 if there are no reviews containing this token
      */
     public int getTokenFrequency(String token) {
-        // FIXME need to relate table to string and do binary search
-        return 0;
+        readLexicon(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
+        decodeTokens();
+        return this.table.get(this.index_table.get(token)).get("total_reviews");
     }
     /**
      * Return the number of times that a given token (i.e., word) appears in
@@ -141,8 +199,9 @@ public class IndexReader {
      * Returns 0 if there are no reviews containing this token
      */
     public int getTokenCollectionFrequency(String token) {
-        return 0;
-
+        readLexicon(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
+        decodeTokens();
+        return this.table.get(this.index_table.get(token)).get("total_freq");
     }
     /**
      * Return a series of integers of the form id-1, freq-1, id-2, freq-2, ... such
@@ -154,10 +213,30 @@ public class IndexReader {
      */
 
      public Enumeration<Integer> getReviewsWithToken(String token) {
+         int from, size;
+         from = this.table.get(this.index_table.get(token)).get("pl_location");
+         size = this.table.get(this.index_table.get(token)+1).get("total_reviews");
+
+         try
+         {
+             RandomAccessFile file = new RandomAccessFile("PostingListsOfWords.txt", "rw");
+             file.seek(from);
+             byte [] reviewIds = new byte[size];
+             file.read(reviewIds);
+             byte [] reviewFreqs = new byte[size];
+             file.read(reviewFreqs);
+         }
+
+         catch (IOException e1)
+         {
+             e1.printStackTrace();
+         }
+
          return new Enumeration<>() {
+
              @Override
              public boolean hasMoreElements() {
-                 return false;
+
              }
 
              @Override
@@ -171,15 +250,18 @@ public class IndexReader {
      * Return the number of product reviews available in the system
      */
     public int getNumberOfReviews() {
-        return 0;
+        readLexicon(PRODUCTS_STRING_FILENAME, PRODUCTS_TABLE_FILENAME);
+        //binarySearch();
 
+        return this.table.get(0).get("total_reviews");
     }
     /**
      * Return the number of number of tokens in the system
      * (Tokens should be counted as many times as they appear)
      */
     public int getTokenSizeOfReviews() {
-        return 0;
+        //FIXME - check what this method should return
+        return 1;
     }
     /**
      * Return the ids of the reviews for a given product identifier

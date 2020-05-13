@@ -17,8 +17,8 @@ public class InvertedIndex {
         index.get(token).post(reviewId);
 
     }
-    // FIXME - here we should save posting list byte offset for further retrieval (each posting list)
-    // FIXME - + we need to use GroupVarint for decode and than writ it into disk
+
+    // here we put info into table, then write the pl into file (the reviews id + their freqs)
     public void write(Lexicon lex, int num) {
         int byte_offset = 0;
         byte [] encoded_reveiwsIds, encoded_freqs;
@@ -36,7 +36,7 @@ public class InvertedIndex {
             // here we assume the term given will be ordered according to sort map in lexicon
             lex.table.put(entry.getKey(), row);
 
-            // here we write the current pl into some file
+            // here we write the current pl into the file
             encoded_reveiwsIds = GroupVarint.encode(entry.getValue().list);
             encoded_freqs = GroupVarint.encode(new ArrayList<Integer>(entry.getValue().freq.values()));
             try {
@@ -50,7 +50,7 @@ public class InvertedIndex {
             }
 
             // here we actually encode and than increment offset for next term to load
-            byte_offset += encoded_reveiwsIds.length;
+            byte_offset += encoded_reveiwsIds.length*2;
         }
 
     }
