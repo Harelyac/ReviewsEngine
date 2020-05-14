@@ -34,7 +34,7 @@ public class Lexicon {
             lexStr.append(length);
 
             // saving the location of the first term for each block
-            this.table.get(term).put("term_location",lexStr.length());
+            this.table.get(term).put("term_location",lexStr.length() - 1);
 
             lexStr.append(prefix).append("*").append(suffix);
 

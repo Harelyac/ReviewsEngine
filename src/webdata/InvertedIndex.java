@@ -5,9 +5,9 @@ import java.io.RandomAccessFile;
 import java.util.*;
 
 public class InvertedIndex {
-    Map<String, PostingList> index;
+    SortedMap<String, PostingList> index;
     public InvertedIndex(){
-        this.index = new Hashtable<>();
+        this.index = new TreeMap<>();
     }
 
     public void updateIndex(String token, int reviewId) {
@@ -15,7 +15,6 @@ public class InvertedIndex {
             index.put(token, new PostingList());
         }
         index.get(token).post(reviewId);
-
     }
 
     // here we put info into table, then write the pl into file (the reviews id + their freqs)
@@ -27,19 +26,27 @@ public class InvertedIndex {
 
         // first use posting list and update information into lexicon
         for (Map.Entry<String, PostingList> entry : index.entrySet()){
+
             Map<String, Integer> row = new HashMap<>();
             row.put("length", entry.getKey().length());
-            row.put("pl_location", byte_offset);
-            row.put("total_reviews", entry.getValue().list.size());
-            row.put("total_freq", getTotalFreq(entry.getValue().freq.values()));
+            row.put("pl_reviewsIds", byte_offset); // saving beginning of reviews's IDs
+
 
             // here we assume the term given will be ordered according to sort map in lexicon
             lex.table.put(entry.getKey(), row);
 
             // here we write the current pl into the file
             encoded_reveiwsIds = GroupVarint.encode(entry.getValue().list);
+
+            byte_offset += encoded_reveiwsIds.length;
+            row.put("pl_reviewsFreqs", byte_offset); // saving beginning of reviews's frequencies
+
             encoded_freqs = GroupVarint.encode(new ArrayList<Integer>(entry.getValue().freq.values()));
-            try {
+
+            byte_offset += encoded_freqs.length;
+
+            try
+            {
                 RandomAccessFile file = new RandomAccessFile(files[num], "rw");
                 file.write(encoded_reveiwsIds);
                 file.write(encoded_freqs);
@@ -49,8 +56,7 @@ public class InvertedIndex {
                 e.printStackTrace();
             }
 
-            // here we actually encode and than increment offset for next term to load
-            byte_offset += encoded_reveiwsIds.length*2;
+
         }
 
     }
