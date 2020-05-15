@@ -16,15 +16,33 @@ public class Main {
 //        siw.slowWrite("src/webdata/100.txt");
 //
 //        IndexReader ir = new IndexReader("ReviewsData.txt");
-//        String token = "several";
+//        String token = "bought";
+//        ir.getTokenFrequency(token);
+//        System.out.println(ir.table);
+//        ir.readPostingList(token);
+//
+        test();
 
+    }
+
+    public static void test(){
         List<Integer> l = new ArrayList<>();
-        List<Integer> l2 = new ArrayList<>();
-        l.add(80);
-        l.add(320);
-        l.add(31);
-        l.add(255);
 
+        l.add(3);
+        l.add(320);
+        l.add(320);
+        l.add(320);
+        l.add(320);
+        l.add(2222);
+        l.add(320);
+        l.add(320);
+        l.add(3543);
+        l.add(320);
+        l.add(320);
+        l.add(320);
+        l.add(320);
+
+        System.out.println(l.size());
         System.out.println("============\nNumbers:\n============");
         for (int a : l) {
             System.out.println(a);
@@ -36,15 +54,19 @@ public class Main {
         System.out.println("============\nAfter encoding:\n============");
 //        GroupVar
         for (byte b : arr) {
-            System.out.print(String.format("%8s",Integer.toBinaryString(b & 0xFF)).replace(' ','0'));
+            System.out.println(String.format("%8s",Integer.toBinaryString(b & 0xFF)).replace(' ','0'));
         }
         System.out.println();
         System.out.println("============\nAfter decoding (binary):\n============");
-        l2 = GroupVarint.decode(arr);
-        for (int c : l2) {
-            System.out.println(String.format("%8s", Integer.toBinaryString(c & 0xFF)).replace(' ', '0'));
-        }
+
+//        l2 = GroupVarint.decode(arr);
+//        for (int c : l2) {
+//            System.out.println(String.format("%8s", Integer.toBinaryString(c & 0xFF)).replace(' ', '0'));
+//        }
+
         System.out.println("============\nAfter decoding (decimal):\n============");
+        List<Integer> l2 = new ArrayList<>();
+        l2 = GroupVarint.decode(arr);
         for (int a : l2) {
             System.out.println(a);
         }

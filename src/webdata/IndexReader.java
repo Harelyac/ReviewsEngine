@@ -28,7 +28,7 @@ public class IndexReader {
         curr_review = new ReviewData();
         curr_review_id = 0;
         number_of_reviews = 0;
-
+        table = new ArrayList<>();
     }
 
     /**
@@ -107,16 +107,18 @@ public class IndexReader {
         {
             RandomAccessFile file = new RandomAccessFile("PostingListsOfWords.txt", "rw");
             file.seek(indexIDs);
-            byte [] reviewIds = new byte[indexFreqs - indexIDs];
-            file.read(reviewIds);
+            byte [] reviewIdsBytes = new byte[indexFreqs - indexIDs];
+            file.read(reviewIdsBytes);
 
-            //GroupVarint.decode(reviewIds); //FIXME - check decode, it returns list of int
+            List<Integer> reviewIds = new ArrayList<>();
+            reviewIds = GroupVarint.decode(reviewIdsBytes);
+            System.out.println(reviewIds);
 
             file.seek(indexFreqs);
             byte [] reviewFreqs = new byte[indexNextIDs - indexFreqs];
             file.read(reviewFreqs);
 
-            //GroupVarint.decode(reviewFreqs);
+            GroupVarint.decode(reviewFreqs);
         }
 
         catch (IOException e1)
