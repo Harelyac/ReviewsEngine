@@ -8,6 +8,6 @@ public class Main {
         siw.slowWrite("src/webdata/100.txt");
 
         IndexReader ir = new IndexReader("C:\\Users\\harelyac\\IdeaProjects\\ReviewsEngine\\ReviewsData.txt");
-        System.out.println(ir.getTokenFrequency("bought"));
+        System.out.println(ir.getTokenFrequency("tube"));
     }
 }

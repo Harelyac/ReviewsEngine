@@ -48,23 +48,34 @@ public class IndexReader {
      * @return if token not found returns -1
      */
     public int binarySearch(String token){
-        String temp, head_word;
-        int length_first;
+        String temp, head_word, block;
+        String [] block_words;
+
         int right = this.table.size(), left = 0;
+
         // getting into middle index that dividable by zero, the idea is moving only on head of each block
         int middle = ((right + left) / 2) - (((right + left) / 2) % 4);
         int index;
+        int next_index;
+
         while (right > left)
         {
             index = this.table.get(middle).get("term_location");
-            length_first = Integer.parseInt(String.valueOf(this.lexStr.charAt(index)));
-            temp = this.lexStr.substring(index + 1, index + 1 + length_first + 1);
-            head_word = temp.replace("*", "");
+            next_index = this.table.get(middle + 4).get("term_location");
+
+            block = this.lexStr.substring(index + 1, next_index);
+            block_words = block.split("[^A-Za-z]{1,2}");
+            head_word =  block_words[0] + block_words[1];
 
             // we are on correct block
-            if (token.equals(head_word) | right - left == 4)
+            if (head_word.equals(token) | right - left == 4)
             {
-                return middle;
+                for (int i = 1; i < block_words.length; i++){
+                    if (token.equals(block_words[0] + block_words[i]))
+                    {
+                        return middle;
+                    }
+                }
             }
 
             // we are not on correct block
