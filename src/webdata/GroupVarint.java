@@ -3,7 +3,9 @@ package webdata;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 
@@ -11,67 +13,60 @@ public class GroupVarint {
 
     private static final int BLOCK_SIZE = 4;
 
-    public static int[] decode(RandomAccessFile reader) {
-        try {
-            int[] numOfBytes = new int[BLOCK_SIZE];
-            byte[][] numbersInBytes = new byte[4][4];
-            int[] numbers = new int[4];
+    public static List<Integer> decode(byte[] bytes) {
+        List<Integer> result = new ArrayList<>();
+        byte b;
+        int idx = 1;
+        byte groups = bytes[0];
+        int[] numOfBytes = new int[4];
+        numOfBytes = decodeNumOfBytes(groups);
 
-            int nBytes = reader.readByte();
-            for (int i = 0; i < 4; i++) {
-                nBytes <<= i * 2;
-                nBytes >>= 6;
-                numOfBytes[i] = nBytes;
+        for (int i = 0; i < 4; i++) {
+            byte[] numberInBytes = new byte[4];
+            for (int j = 0; j < numOfBytes[i]; j++) {
+                numberInBytes[j] = (byte) (bytes[idx] );
+                idx++;
             }
-
-            for (int i = 0; i < 4; i++) { //read number from file
-                reader.read(numbersInBytes[i], 0, numOfBytes[i]);
-            }
-
-            for (int i = 0; i < 4; i++) { //convert to int
-                numbers[i] = fromByteArray(numbersInBytes[i]);
-            }
-
-            return numbers;
-        } catch (IOException e) {
-            return new int[0];
-        }
-    }
-
-    public static byte[] encode(List<Integer> numbers) {
-        List<Byte> group = new ArrayList<>();
-        byte sizeOfGroup = 0;
-        int size, num;
-        for (int i = 0; i < numbers.size(); i++) {
-            num = numbers.get(i);
-            if (num == 0) { //if num == 0, write padding
-                group.add((byte) num);
-                continue;
-            }
-
-            size = getNumOfBytes(num);
-            addNumberToGroup(group, num);
-            sizeOfGroup = (byte) (sizeOfGroup + (size << (6 - i * 2)));
+            result.add(fromByteArray(numberInBytes));
 
         }
-        group.add(0, sizeOfGroup);
-        byte[] result = new byte[group.size()];
-        for (int i = 0; i < result.length; i++) {
-            result[i] = group.get(i);
-        }
+
         return result;
     }
 
-    private static void addNumberToGroup(List<Byte> group, int num) {
-        byte[] numInBytes = tooByteArray(num); //get number in bytes
-        boolean seenNumbers = false;
-        for (byte b : numInBytes) { // add number minimal representation
-            if (b != 0 || seenNumbers) { // do not add first 0 bytes
-                seenNumbers = true;
-                group.add(b);
+    private static int[] decodeNumOfBytes(byte groups) {
+        int[] numOfBytes = new int[4];
+        for (int i = 0; i < 4; i++) {
+            numOfBytes[i] = (groups >> 6 - i*2 & 3)+1;
+        }
+
+        return numOfBytes;
+    }
+
+    public static byte[] intToBytes(final int i) {
+        return ByteBuffer.allocate(4).order(ByteOrder.nativeOrder()).putInt(i).array();
+    }
+
+    public static byte[] encode(List<Integer> numbers) {
+        byte[] result = new byte[8];
+        int group = 0;
+        for (int i = 0; i < 4; i++) {
+            group = (group << 2 | getNumOfBytes(numbers.get(i)) - 1);
+        }
+        result[0] = (byte) group;
+
+        int idx = 1;
+        for (int i = 0; i < 4; i++) {
+            int number = numbers.get(i);
+            byte[] b = intToBytes(number);
+            for (int j = 0; j < getNumOfBytes(number); j++) {
+                result[idx] = (byte) (b[j]);
+                idx++;
             }
         }
+        return Arrays.copyOfRange(result,0,idx);
     }
+
 
     private static int getNumOfBytes(int val) {
         int nBits;
@@ -88,20 +83,9 @@ public class GroupVarint {
 
     }
 
-    public static byte[] tooByteArray(int a) {
-        byte[] ret = new byte[4];
-        ret[3] = (byte) (a & 0xFF);
-        ret[2] = (byte) ((a >> 8) & 0xFF);
-        ret[1] = (byte) ((a >> 16) & 0xFF);
-        ret[0] = (byte) ((a >> 24) & 0xFF);
-        return ret;
-    }
-
-    public static int circularShift(int n, int k) {
-        return (n << k) | (n >> (Integer.SIZE - k));
-    }
     static int fromByteArray(byte[] bytes) {
-        return ByteBuffer.wrap(bytes).getInt();
+        return ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).getInt();
+
     }
 
 }
