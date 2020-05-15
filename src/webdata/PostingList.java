@@ -1,36 +1,30 @@
 package webdata;
 
-import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class PostingList {
-    List<Integer> list;
-    Map<Integer, Integer> freq;
-    int lastDocId;
+    SortedMap<Integer, Integer> freqMap;
 
     public PostingList() {
-        this.list = new ArrayList<>();
-        this.freq = new Hashtable<>();
-        this.lastDocId = 0;
+        this.freqMap = new TreeMap<>();
     }
 
     public void post(Integer docId) {
-        if (list.contains(docId))
-        {
-            Integer count = freq.get(docId);
-            freq.put(docId, count + 1);
-        }
+        freqMap.put(docId, freqMap.getOrDefault(docId, 0));
+    }
 
-        else
-        {
-            int gap = docId - lastDocId;
-            list.add(gap);
-            freq.put(docId, 1);
-            lastDocId = docId;
-
+    public List<Integer> getDocIdsList(){
+        List<Integer> docIdsList = new ArrayList<>();
+        docIdsList.add(freqMap.firstKey());
+        int last = freqMap.firstKey();
+        int curr;
+        List<Integer> docs = new ArrayList<>(freqMap.keySet());
+        for (int i = 1; i < freqMap.size(); i++) {
+            curr =  docs.get(i);
+            docIdsList.add(curr - last);
+            last = curr;
         }
+        return docIdsList;
     }
 
 }
