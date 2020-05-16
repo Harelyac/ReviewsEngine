@@ -10,7 +10,7 @@ public class PostingList {
     }
 
     public void post(Integer docId) {
-        freqMap.put(docId, freqMap.getOrDefault(docId, 0));
+        freqMap.put(docId, freqMap.getOrDefault(docId, 0) + 1);
     }
 
     public List<Integer> getDocIdsList(){

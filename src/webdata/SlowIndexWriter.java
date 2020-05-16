@@ -9,10 +9,15 @@ import java.util.*;
 
 public class SlowIndexWriter {
     private static final int BLOCK_SIZE = 4;
+
     private static final String WORDS_STRING_FILENAME = "words_lex_string.txt";
-    private static final String PRODUCTS_STRING_FILENAME = "products_lex_string.txt";
     private static final String WORDS_TABLE_FILENAME = "words_lex_table.ser";
+    private static final String WORDS_POSTING_LISTS = "posting_list_of_words.txt";
+
+    private static final String PRODUCTS_STRING_FILENAME = "products_lex_string.txt";
     private static final String PRODUCTS_TABLE_FILENAME = "products_lex_table.ser";
+    private static final String PRODUCTS_POSTING_LISTS = "posting_lists_of_productsIds.txt";
+
 
     /**
      * Given product review data, creates an on disk index
@@ -44,8 +49,8 @@ public class SlowIndexWriter {
         reviewsIndex.write();
 
         // writing encoded posting lists to disk (before encoding lexicons - to get data on posting lists location on disk)
-        wordsIndex.write(wordsLex, 1);
-        productIdIndex.write(productsLex, 0);
+        wordsIndex.write(wordsLex, WORDS_POSTING_LISTS);
+        productIdIndex.write(productsLex, PRODUCTS_POSTING_LISTS);
 
 
         // writing encoded lexicons to disk (table without words + the big string)

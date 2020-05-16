@@ -19,19 +19,27 @@ public class InvertedIndex {
     }
 
     // here we put info into table, then write the pl into file (the reviews id + their freqs)
-    public void write(Lexicon lex, int num) {
+    public void write(Lexicon lex, String  file_path) throws IOException {
         int ptr = 0;
         byte[] encoded_reveiwsIds, encoded_freqs;
+        RandomAccessFile file = null;
 
-        String[] files = {"PostingListsOfProductIDS.txt", "PostingListsOfWords.txt"};
+        try
+        {
+            file = new RandomAccessFile(file_path, "rw");
+        }
+        catch (Exception e){
+            e.printStackTrace();
+        }
+
 
         // first use posting list and update information into lexicon
         for (Map.Entry<String, PostingList> entry : index.entrySet()) {
             String token = entry.getKey();
             PostingList pl = entry.getValue();
             List<Integer> docList = pl.getDocIdsList();
-            Map<String, Integer> row = new HashMap<>();
 
+            Map<String, Integer> row = new HashMap<>();
             row.put("length", token.length());
             row.put("pl_reviewsIds_ptr", ptr); // saving beginning of reviews's IDs
 
@@ -46,17 +54,16 @@ public class InvertedIndex {
             // Building lexicon table
             lex.table.put(token, row);
 
-            try {
-                RandomAccessFile file = new RandomAccessFile(files[num], "rw");
+            try
+            {
                 file.write(encoded_reveiwsIds);
                 file.write(encoded_freqs);
-                file.close(); // FIXME - change later a lot of open and closing
-            } catch (IOException e) {
-                e.printStackTrace();
             }
 
-
+            catch (IOException e) {
+                e.printStackTrace();
+            }
         }
-
+        file.close();
     }
 }

@@ -65,7 +65,7 @@ public class GroupVarint {
                 int numOfByte = getNumOfBytes(number);
                 byte[] b = intToBytes(number);
                 for (int j = 0; j < numOfByte; j++) {
-                    System.out.println(String.format("%8s",Integer.toBinaryString(b[j] & 0xFF)).replace(' ','0'));
+                    //System.out.println(String.format("%8s",Integer.toBinaryString(b[j] & 0xFF)).replace(' ','0'));
                     result.add(b[j]);
                 }
 
@@ -118,6 +118,7 @@ public class GroupVarint {
 //        }
 //        return (int) (result & 0xFFFFFFFFL);
 //    }
+
     public static int toInt( byte[] bytes ) {
         int res = 0;
         if (bytes == null)

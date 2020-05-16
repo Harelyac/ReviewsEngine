@@ -5,9 +5,15 @@ import java.util.*;
 
 public class IndexReader {
     private static final String WORDS_STRING_FILENAME = "words_lex_string.txt";
-    private static final String PRODUCTS_STRING_FILENAME = "products_lex_string.txt";
     private static final String WORDS_TABLE_FILENAME = "words_lex_table.ser";
+    private static final String WORDS_POSTING_LISTS = "posting_list_of_words.txt";
+
+    private static final String PRODUCTS_STRING_FILENAME = "products_lex_string.txt";
     private static final String PRODUCTS_TABLE_FILENAME = "products_lex_table.ser";
+    private static final String PRODUCTS_POSTING_LISTS = "posting_lists_of_productsIds.txt";
+
+    private static final String REVIEWS_DATA = "reviews_data.txt";
+
 
     File file;
     ReviewData curr_review;
@@ -16,9 +22,9 @@ public class IndexReader {
 
     List<Map<String, Integer>> table;
     String lexStr;
-    PostingList curr_posting_list; // load posting lists and frequencies
-
-
+    PostingList curr_pl; // load posting lists and frequencies
+    String curr_token;
+    String curr_productId;
 
     /**
      * Creates an IndexReader which will read from the given directory
@@ -28,17 +34,12 @@ public class IndexReader {
         curr_review = new ReviewData();
         curr_review_id = 0;
         number_of_reviews = 0;
-        table = new ArrayList<>();
-    }
 
-    /**
-     *  this method parse over Lex string and finds that words on given range
-     * @param token
-     * @param right
-     * @param left
-     */
-    public int lookForWord(String token, int right, int left){
-        return 1;
+        table = new ArrayList<>();
+        String lexStr = "";
+        curr_pl = new PostingList();
+        curr_token = "";
+        curr_productId = "";
     }
 
 
@@ -60,23 +61,25 @@ public class IndexReader {
 
         while (right > left)
         {
-            index = this.table.get(middle).get("term_location");
-            next_index = this.table.get(middle + 4).get("term_location");
+            index = this.table.get(middle).get("term_ptr");
+            next_index = this.table.get(middle + 4).get("term_ptr");
 
             block = this.lexStr.substring(index + 1, next_index);
             block_words = block.split("[^A-Za-z]{1,2}");
             head_word =  block_words[0] + block_words[1];
 
             // we are on correct block
-            if (head_word.equals(token) | right - left == 4)
+            if (right - left == 4 | token.equals(block_words[0] + block_words[1]))
             {
-                for (int i = 1; i < block_words.length; i++){
+                for (int i = 1; i < block_words.length; i++)
+                {
                     if (token.equals(block_words[0] + block_words[i]))
                     {
-                        return middle;
+                        return middle + (i - 1);
                     }
                 }
             }
+
 
             // we are not on correct block
             if (token.compareTo(head_word) > 0)
@@ -99,26 +102,37 @@ public class IndexReader {
         int indexIDs, indexFreqs, indexNextIDs ,size;
         int index = binarySearch(token);
 
-        indexIDs = this.table.get(index).get("pl_reviewsIds");
-        indexFreqs = this.table.get(index).get("pl_reviewsFreqs");
-        indexNextIDs = this.table.get(index + 1).get("pl_reviewsIds");
+        indexIDs = this.table.get(index).get("pl_reviewsIds_ptr");
+        indexFreqs = this.table.get(index).get("pl_reviewsFreqs_ptr");
+        indexNextIDs = this.table.get(index + 1).get("pl_reviewsIds_ptr");
 
         try
         {
-            RandomAccessFile file = new RandomAccessFile("PostingListsOfWords.txt", "rw");
+            RandomAccessFile file = new RandomAccessFile(WORDS_POSTING_LISTS, "rw"); // FIXME - UPDATE TO DEAL WITH TWO KINDS OF POSING LISTS
             file.seek(indexIDs);
             byte [] reviewIdsBytes = new byte[indexFreqs - indexIDs];
             file.read(reviewIdsBytes);
 
             List<Integer> reviewIds = new ArrayList<>();
             reviewIds = GroupVarint.decode(reviewIdsBytes);
-            System.out.println(reviewIds);
+            //System.out.println(reviewIds);
 
             file.seek(indexFreqs);
-            byte [] reviewFreqs = new byte[indexNextIDs - indexFreqs];
-            file.read(reviewFreqs);
+            byte [] reviewFreqsBytes = new byte[indexNextIDs - indexFreqs];
+            file.read(reviewFreqsBytes);
 
-            GroupVarint.decode(reviewFreqs);
+            List<Integer> reviewFreqs = new ArrayList<>();
+            reviewFreqs = GroupVarint.decode(reviewFreqsBytes);
+            //System.out.println(reviewFreqs);
+
+
+            int curr_sum = 0;
+            // initialize posting list with values being read
+            for (int i = 0; i < reviewIds.size(); i++)
+            {
+                curr_sum += reviewIds.get(i); // calculate id base on diffs
+                curr_pl.freqMap.put(curr_sum, reviewFreqs.get(i));
+            }
         }
 
         catch (IOException e1)
@@ -164,7 +178,7 @@ public class IndexReader {
         String data;
         try
         {
-            RandomAccessFile file = new RandomAccessFile("ReviewsData.txt", "rw");
+            RandomAccessFile file = new RandomAccessFile(REVIEWS_DATA, "rw");
 
             // get number of reviews
             if (number_of_reviews == 0) {
@@ -259,11 +273,16 @@ public class IndexReader {
      * Returns 0 if there are no reviews containing this token
      */
     public int getTokenFrequency(String token) {
-        readLexicon(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
-        readPostingList(token);
+        if (table.isEmpty()){
+            readLexicon(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
+        }
 
+        if (token != curr_token) {
+            readPostingList(token);
+            curr_token = token;
+        }
 
-        return 1;
+        return curr_pl.freqMap.size();
     }
     /**
      * Return the number of times that a given token (i.e., word) appears in
@@ -271,8 +290,23 @@ public class IndexReader {
      * Returns 0 if there are no reviews containing this token
      */
     public int getTokenCollectionFrequency(String token) {
+        if (table.isEmpty()){
+            readLexicon(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
+        }
 
-        return 1;
+        if (token != curr_token)
+        {
+            readPostingList(token);
+            curr_token = token;
+        }
+
+        int sum = 0;
+        // sum all the reviews freqs for a given token
+        for (int freq : curr_pl.freqMap.values()){
+            sum += freq;
+        }
+
+        return sum;
     }
     /**
      * Return a series of integers of the form id-1, freq-1, id-2, freq-2, ... such
@@ -283,52 +317,56 @@ public class IndexReader {
      * Returns an empty Enumeration if there are no reviews containing this token
      */
 
-     public Enumeration<Integer> getReviewsWithToken(String token) {
-         readPostingList(token);
-         return new Enumeration<>() {
+       /* public Enumeration<Integer> getReviewsWithToken(String token) {
+        if (table.isEmpty()){
+            readLexicon(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
+        }
 
-             @Override
-             public boolean hasMoreElements() {
-                 return false;
-             }
+        if (token != curr_token)
+        {
+            readPostingList(token);
+            curr_token = token;
+        }
 
-             @Override
-             public Integer nextElement() {
-                 return null;
-             }
-         };
-     }
+        return (Enumeration<Integer>)curr_pl.freqMap; // FIXME
+     }*/
 
      /**
      * Return the number of product reviews available in the system
      */
     public int getNumberOfReviews() {
-        return 1;
+        if (number_of_reviews == 0){
+            readReview(1); // read first review in order to initialize the number of reviews variable
+        }
+
+        return number_of_reviews;
     }
+
     /**
      * Return the number of number of tokens in the system
      * (Tokens should be counted as many times as they appear)
      */
     public int getTokenSizeOfReviews() {
-        return 1;
+        return 1; // FIXME what is the meaning of this method?
     }
+
     /**
      * Return the ids of the reviews for a given product identifier
      * Note that the integers returned should be sorted by id
      *
      * Returns an empty Enumeration if there are no reviews for this product
      */
-    public Enumeration<Integer> getProductReviews(String productId) {
-        return new Enumeration<>() {
-            @Override
-            public boolean hasMoreElements() {
-                return false;
-            }
+    /*public Enumeration<Integer> getProductReviews(String productId) {
+        if (table.isEmpty()){
+            readLexicon(PRODUCTS_STRING_FILENAME, PRODUCTS_TABLE_FILENAME);
+        }
 
-            @Override
-            public Integer nextElement() {
-                return null;
-            }
-        };
-    }
+        if (curr_productId != productId)
+        {
+            readPostingList(productId);
+            curr_token = productId;
+        }
+
+        return (Enumeration<Integer>)curr_pl.freqMap; // FIXME
+    }*/
 }

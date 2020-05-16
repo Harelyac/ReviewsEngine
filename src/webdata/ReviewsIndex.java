@@ -7,6 +7,8 @@ import java.util.Map;
 
 
 public class ReviewsIndex {
+    private static final String REVIEWS_DATA = "reviews_data.txt";
+
     Map<Integer, ReviewData> index;
     public ReviewsIndex()
     {
@@ -21,7 +23,7 @@ public class ReviewsIndex {
 
         try
         {
-            RandomAccessFile file = new RandomAccessFile("ReviewsData.txt", "rw");
+            RandomAccessFile file = new RandomAccessFile(REVIEWS_DATA, "rw");
             for (ReviewData rd : index.values())
             {
                 byte[] Bytes = (rd.toString() + "\t".repeat(25 - rd.toString().getBytes().length) + "\n").getBytes();

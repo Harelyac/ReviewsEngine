@@ -12,17 +12,14 @@ import java.util.stream.Stream;
 public class Main {
     public static void main(String[] args) throws IOException {
 
-//        SlowIndexWriter siw = new SlowIndexWriter();
-//        siw.slowWrite("src/webdata/100.txt");
-//
-//        IndexReader ir = new IndexReader("ReviewsData.txt");
-//        String token = "bought";
-//        ir.getTokenFrequency(token);
-//        System.out.println(ir.table);
-//        ir.readPostingList(token);
-//
-        test();
+        SlowIndexWriter siw = new SlowIndexWriter();
+        siw.slowWrite("src/webdata/100.txt");
 
+        IndexReader ir = new IndexReader("ReviewsData.txt"); // FIXME - CHAGE TO DIR NOT SPECIFIC FILE
+        String token = "at";
+        System.out.println(ir.getTokenFrequency(token));
+
+        //test();
     }
 
     public static void test(){
