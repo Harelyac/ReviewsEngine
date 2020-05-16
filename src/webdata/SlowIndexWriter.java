@@ -102,6 +102,7 @@ public class SlowIndexWriter {
                             token = getToken(tokenizer);
                             if (!token.isEmpty()) {
                                 wordsIndex.updateIndex(token, reviewId);
+                                reviewsIndex.tokenCount++;
                             }
                         }
                         review.length = tokenizer.countTokens();

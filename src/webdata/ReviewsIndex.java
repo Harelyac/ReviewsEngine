@@ -8,12 +8,15 @@ import java.util.Map;
 
 public class ReviewsIndex {
     private static final String REVIEWS_DATA = "reviews_data.txt";
+    public int tokenCount;
 
     Map<Integer, ReviewData> index;
     public ReviewsIndex()
     {
         this.index = new Hashtable<>();
+        tokenCount = 0;
     }
+
     public void put(int reviewId, ReviewData review) {
         index.put(reviewId,review);
     }
@@ -29,6 +32,7 @@ public class ReviewsIndex {
                 byte[] Bytes = (rd.toString() + "\t".repeat(25 - rd.toString().getBytes().length) + "\n").getBytes();
                 file.write(Bytes);
             }
+            file.writeInt(tokenCount); // write token count at the end of this file
             file.close();
         }
 

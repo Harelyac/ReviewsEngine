@@ -18,10 +18,10 @@ public class InvertedIndex {
         index.get(token).post(reviewId);
     }
 
-    // here we put info into table, then write the pl into file (the reviews id + their freqs)
+    // here we put info into table, then write the pl into file (the reviews id + their freqs
     public void write(Lexicon lex, String  file_path) throws IOException {
         int ptr = 0;
-        byte[] encoded_reveiwsIds, encoded_freqs;
+        byte[] encoded_reveiwsIds, encoded_freqs = new byte[0]; // FIXME - maybe this will cause future problems
         RandomAccessFile file = null;
 
         try
@@ -45,11 +45,14 @@ public class InvertedIndex {
 
             encoded_reveiwsIds = GroupVarint.encode(docList);
             ptr += encoded_reveiwsIds.length;
-            row.put("pl_reviewsFreqs_ptr", ptr); // saving beginning of reviews's frequencies
 
-            List<Integer> docFreqList = new ArrayList<>(pl.freqMap.values());
-            encoded_freqs = GroupVarint.encode(docFreqList);
-            ptr += encoded_freqs.length;
+            if (file_path.equals("posting_list_of_words.txt")){
+                row.put("pl_reviewsFreqs_ptr", ptr); // saving beginning of reviews's frequencies
+                List<Integer> docFreqList = new ArrayList<>(pl.freqMap.values());
+                encoded_freqs = GroupVarint.encode(docFreqList);
+                ptr += encoded_freqs.length;
+            }
+
 
             // Building lexicon table
             lex.table.put(token, row);
@@ -57,7 +60,10 @@ public class InvertedIndex {
             try
             {
                 file.write(encoded_reveiwsIds);
-                file.write(encoded_freqs);
+                if (file_path.equals("posting_list_of_words.txt")){
+                    file.write(encoded_freqs);
+                }
+
             }
 
             catch (IOException e) {

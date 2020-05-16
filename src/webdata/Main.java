@@ -17,7 +17,7 @@ public class Main {
 
         IndexReader ir = new IndexReader("ReviewsData.txt"); // FIXME - CHAGE TO DIR NOT SPECIFIC FILE
         String token = "at";
-        System.out.println(ir.getTokenFrequency(token));
+        System.out.println(ir.getTokenSizeOfReviews());
 
         //test();
     }
