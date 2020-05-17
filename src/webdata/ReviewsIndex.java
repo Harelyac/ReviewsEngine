@@ -32,6 +32,7 @@ public class ReviewsIndex {
                 byte[] Bytes = (rd.toString() + "\t".repeat(25 - rd.toString().getBytes().length) + "\n").getBytes();
                 file.write(Bytes);
             }
+
             file.writeInt(tokenCount); // write token count at the end of this file
             file.close();
         }
