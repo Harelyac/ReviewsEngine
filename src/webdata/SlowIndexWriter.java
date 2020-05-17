@@ -40,14 +40,14 @@ public class SlowIndexWriter {
         this.wordsLex = new Lexicon(BLOCK_SIZE);
     }
 
-    public void slowWrite(String inputFile, String dir) throws IOException {
+    public void slowWrite(String inputFile, String dir)  {
         parseFile(dir + "//" + inputFile);
         writeIndexFiles(dir);
     }
 
 
 
-    private void writeIndexFiles(String dir) throws IOException {
+    private void writeIndexFiles(String dir)  {
         // writing reviews data to disk
         reviewsIndex.write(dir);
 
@@ -95,9 +95,8 @@ public class SlowIndexWriter {
                     case "review/helpfulness":
                         token = getToken(tokenizer);
                         if (!token.isEmpty()) {
-                            String[] split = token.split("/");
-                            review.helpfulnessNumerator = Integer.parseInt(split[0]);
-                            review.helpfulnessDenominator = Integer.parseInt(split[1]);
+                            review.helpfulnessNumerator = Integer.parseInt(String.valueOf(token.charAt(0)));
+                            review.helpfulnessDenominator = Integer.parseInt(String.valueOf(token.charAt(1)));
                         }
                         break;
                     case "review/text":
@@ -122,10 +121,9 @@ public class SlowIndexWriter {
         }
     }
 
-    // [^a-zA-Z0-9]+
     private String getToken(StringTokenizer tokenizer) {
         String token = tokenizer.nextToken().toLowerCase();
-        token = token.replaceAll("[\\/]*[\\d]*(<\\w>)*[\\/]*[\\s\\t\b]*", "");
+        token = token.replaceAll("[^a-zA-Z0-9]+", "");
         return token;
     }
 

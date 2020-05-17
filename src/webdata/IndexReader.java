@@ -59,30 +59,46 @@ public class IndexReader {
         int right = this.table.size(), left = 0;
 
         // getting into middle index that dividable by zero, the idea is moving only on head of each block
-        int middle = ((right + left) / 2) - (((right + left) / 2) % 4);
+        int middle = ((right + left) / 2) + (4 - (((right + left) / 2) % 4));
         int index;
         int next_index;
 
         while (right > left)
         {
             index = this.table.get(middle).get("term_ptr");
-            next_index = this.table.get(middle + 4).get("term_ptr");
+
+            next_index = lexStr.length();
+            if (middle <= this.table.size() - 4){
+                next_index = this.table.get(middle + 4).get("term_ptr");
+            }
+
 
             block = this.lexStr.substring(index + 1, next_index);
             block_words = block.split("[^A-Za-z]{1,2}");
-            head_word =  block_words[0] + block_words[1];
 
-            // we are on correct block
-            if (right - left == 4 | token.equals(block_words[0] + block_words[1]))
-            {
-                for (int i = 1; i < block_words.length; i++)
+            if (block_words.length > 1){
+                head_word =  block_words[0] + block_words[1];
+
+                // we are on correct block
+                if ((right - left) % 4 == 0 | token.equals(block_words[0] + block_words[1]))
                 {
-                    if (token.equals(block_words[0] + block_words[i]))
+                    for (int i = 1; i < block_words.length; i++)
                     {
-                        return middle + (i - 1);
+                        if (token.equals(block_words[0] + block_words[i]))
+                        {
+                            return middle + (i - 1);
+                        }
                     }
                 }
             }
+            else{
+                head_word =  block_words[0];
+                if (token.equals(block_words[0]))
+                {
+                    return middle;
+                }
+            }
+
 
 
             // we are not on correct block
@@ -95,7 +111,7 @@ public class IndexReader {
                 right = middle;
             }
 
-            middle = ((right + left) / 2) - (((right + left) / 2) % 4);
+            middle = ((right + left) / 2) + (4 - (((right + left) / 2) % 4));
         }
 
         return -1;
@@ -103,14 +119,17 @@ public class IndexReader {
 
 
     public void readPostingList(String token, String filename){
-        int indexIDs, indexFreqs, indexNextIDs;
-        int index = binarySearch(token);
+        long indexIDs, indexFreqs, indexNextIDs;
+        int index = binarySearch(token.toLowerCase());
 
         indexIDs = this.table.get(index).get("pl_reviewsIds_ptr");
-        indexNextIDs = this.table.get(index + 1).get("pl_reviewsIds_ptr");
 
-        indexFreqs = indexNextIDs; // if we deal with productIds
+        indexNextIDs = 0;
+        if (index != this.table.size() - 1){
+            indexNextIDs = this.table.get(index + 1).get("pl_reviewsIds_ptr");
+        }
 
+        indexFreqs = 0;
         if (filename.equals(WORDS_POSTING_LISTS)){
             indexFreqs = this.table.get(index).get("pl_reviewsFreqs_ptr");
         }
@@ -120,7 +139,10 @@ public class IndexReader {
         {
             RandomAccessFile file = new RandomAccessFile(directory + "//" + filename, "rw");
             file.seek(indexIDs);
-            byte [] reviewIdsBytes = new byte[indexFreqs - indexIDs];
+            if (indexFreqs == 0){
+                indexFreqs = file.length();
+            }
+            byte [] reviewIdsBytes = new byte[(int)(indexFreqs - indexIDs)];
             file.read(reviewIdsBytes);
 
             List<Integer> reviewIds = new ArrayList<>();
@@ -128,10 +150,13 @@ public class IndexReader {
             //System.out.println(reviewIds);
 
             List<Integer> reviewFreqs = new ArrayList<>();
-
             if (filename.equals(WORDS_POSTING_LISTS)){
+
                 file.seek(indexFreqs);
-                byte [] reviewFreqsBytes = new byte[indexNextIDs - indexFreqs];
+                if (indexNextIDs == 0){
+                    indexNextIDs = file.length();
+                }
+                byte [] reviewFreqsBytes = new byte[(int)(indexNextIDs - indexFreqs)];
                 file.read(reviewFreqsBytes);
 
                 reviewFreqs = GroupVarint.decode(reviewFreqsBytes);
@@ -294,7 +319,7 @@ public class IndexReader {
      * Returns 0 if there are no reviews containing this token
      */
     public int getTokenFrequency(String token) {
-        if (table.isEmpty() | lexStr == null){
+        if (table.isEmpty() | lexStr == null | last_token.equals("")){
             readLexicon(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
         }
 
@@ -379,7 +404,7 @@ public class IndexReader {
 
         try
         {
-            RandomAccessFile file = new RandomAccessFile(REVIEWS_DATA, "rw");
+            RandomAccessFile file = new RandomAccessFile(directory + "//" + REVIEWS_DATA, "rw");
             file.seek(number_of_reviews * 26);
             tokenCount = file.readInt();
         }
@@ -398,7 +423,7 @@ public class IndexReader {
      * Returns an empty Enumeration if there are no reviews for this product
      */
     public Enumeration<Integer> getProductReviews(String productId) {
-        if (table.isEmpty() | lexStr == null){
+        if (table.isEmpty() | lexStr == null | last_productId.equals("")){
             readLexicon(PRODUCTS_STRING_FILENAME, PRODUCTS_TABLE_FILENAME);
         }
 

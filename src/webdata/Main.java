@@ -12,13 +12,11 @@ public class Main {
         SlowIndexWriter siw = new SlowIndexWriter();
         siw.slowWrite("1000.txt", "src//webdata");
         IndexReader ir = new IndexReader("src//webdata");
-        String token = "a";
-        Enumeration<Integer> Enum =  ir.getProductReviews("B00813GRG4");
 
-        while(Enum.hasMoreElements())
-        {
-            System.out.println(Enum.nextElement());
-        }
+
+        System.out.println(ir.getProductId(5));
+
+
 
         //test();
     }

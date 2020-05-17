@@ -11,8 +11,8 @@ import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndexReaderTest {
-	final static String dir = "C:\\Users\\שגיב מיכאל\\Desktop\\WebInformationEx";
-	final static String indexDir = dir + "\\indexFiles\\";
+	final static String dir = "C:\\Users\\harelyac\\IdeaProjects\\ReviewsEngine\\src\\webdata";
+	final static String indexDir = dir;
 	final static String inputFile = "1000.txt";
 	static private IndexReader indexReader;
 	static private SlowIndexWriter indexWriter;
@@ -117,8 +117,7 @@ class IndexReaderTest {
 		}
 
 
-* helper for testing Helpfulness, Score, and ReviewLen on several inputs
-
+		/** helper for testing Helpfulness, Score, and ReviewLen on several inputs */
 		private void validateArrayWithFunction(int[] inputs, int[] expectedOutputs,
 											   Function<Integer, Integer> func){
 			for (int i = 0; i < inputs.length; i++) {
@@ -183,8 +182,7 @@ class IndexReaderTest {
 			assertArrayEquals(expected, actual, () -> String.format(msgStr, "Sagiv"));
 		}
 
-* helper for testing Frequencies of Tokens on several valid inputs
-
+		/** helper for testing Frequencies of Tokens on several valid inputs */
 		private void testTokenFrequency(String[] inputs, int[] expectedOutputs, Function<String, Integer> func){
 			for (int i = 0; i < inputs.length; i++) {
 				assertEquals(expectedOutputs[i], (int)func.apply(inputs[i]), String.format(msgStr, inputs[i]));
@@ -238,8 +236,7 @@ class IndexReaderTest {
 	}
 
 
-* helper for testing Enumerations returned values
-
+	/** helper for testing Enumerations returned values */
 	private void testEnumerations(String[] inputs, int[][] expectedOutputs,
 								  Function<String, Enumeration<Integer>> func) {
 		for (int i = 0; i < inputs.length; i++) {
@@ -250,8 +247,7 @@ class IndexReaderTest {
 	}
 
 
-* comment for not checking removeIndex method of slowWriter!.
-
+	/** comment for not checking removeIndex method of slowWriter!. */
 	@AfterAll
 	static void removeDir(){
 		indexWriter.removeIndex(indexDir);
