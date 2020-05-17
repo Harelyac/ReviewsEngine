@@ -1,5 +1,7 @@
 package webdata;
 
+import org.w3c.dom.ls.LSOutput;
+
 import java.io.*;
 import java.util.*;
 
@@ -71,76 +73,6 @@ public class IndexReader {
      * @param token
      * @return if token not found returns -1
      */
-//    public int binarySearch(String token){
-//        String prefix;
-//        String temp, head_word, block;
-//        String [] block_words;
-//        int index, next_index;
-//        int BLOCK_SIZE = 4;
-//        int right = table.size()-1, left = 0;
-//        System.out.println(lexStr);
-//        // getting into middle index that dividable by zero, the idea is moving only on head of each block
-//        int middle = ((right + left) / 2);
-//        middle = middle - middle % BLOCK_SIZE;
-//
-//
-//        while (right > left)
-//        {
-//            index = table.get(middle).get("term_ptr");
-//            next_index = lexStr.length();
-//            System.out.println(next_index);
-//            if (middle <= table.size() - BLOCK_SIZE){
-//                next_index = table.get(middle + 4).get("term_ptr");
-//            }
-//            block = lexStr.substring(index + 1, next_index);
-//            System.out.println("block = "+block);
-//            block_words = block.split("\\P{Alpha}+");
-//
-//
-//            for (String w :
-//                    block_words) {
-//                System.out.println("block word: " + w);
-//            }
-//
-//            if (block_words.length > 1){
-//                prefix = block_words[0];
-//                head_word =  prefix + block_words[1];
-//                if (token.compareTo(prefix) == 0)
-//                {
-//                    for (int i = 0; i < block_words.length; i++) {
-//                        String term = prefix + block_words[i];
-//                        System.out.println("term");
-//                        System.out.println(term);
-//                        if (token.equals(term)){
-//                            return middle;
-//                        }
-//                    }
-//                }
-//                else if (token.compareTo(prefix) > 0)
-//                {
-//                    System.out.println("token = " + token + ", left = " + left + ", right = " + right + ", middle = " + middle);
-//                    if (left < middle) {
-//                        left = middle;
-//                    }
-//                    else
-//                        {
-//                        left+=4;
-//                    }
-//                }
-//                else if (token.compareTo(prefix) < 0)
-//                {
-//                    right = middle;
-//                }
-//
-//            }
-//
-//            // we are not on correct block
-//            middle = ((right + left) / 2) + (4 - (((right + left) / 2) % 4));
-//            System.out.println("token = " + token + ", left = " + left + ", right = " + right + ", middle = " + middle);
-//        }
-//        return -1;
-//    }
-
     public int binarySearch(String token)
     {
         int block_ptr, next_index;
@@ -148,18 +80,15 @@ public class IndexReader {
         int l = 0, r = table.size() - 1;
         int m = l + (r - l) / 2;
         m = m - (m % BLOCK_SIZE);
-        System.out.println(lexStr);
+
         while (l <= r) {
             block_ptr = table.get(m).get("term_ptr");
             next_index = lexStr.length();
             String block = lexStr.substring(block_ptr + 1, next_index);
-            System.out.println(block);
 
             String[] block_words = block.split("\\P{Alpha}+");
             String prefix = block_words[0];
-
-            System.out.println("token = " + token + ", left = " + l + ", right = " + r + ", middle = " + m);
-            int res = token.compareTo(prefix);
+            int res = token.substring(0,prefix.length()).compareTo(prefix);
 
             // Check if x is present at mid
             if (res == 0 || prefix.equals("")) {
@@ -213,7 +142,7 @@ public class IndexReader {
             indexIDs = table.get(index).get("pl_reviewsIds_ptr");
 
             indexNextIDs = 0;
-            if (index < table.size()){
+            if (index < table.size()-1){
                 indexNextIDs = table.get(index + 1).get("pl_reviewsIds_ptr");
             }
 
@@ -235,7 +164,6 @@ public class IndexReader {
 
                 List<Integer> reviewIds = new ArrayList<>();
                 reviewIds = GroupVarint.decode(reviewIdsBytes);
-                //System.out.println(reviewIds);
 
                 List<Integer> reviewFreqs = new ArrayList<>();
                 if (filename.equals(WORDS_POSTING_LISTS)){
@@ -248,7 +176,6 @@ public class IndexReader {
                     file.read(reviewFreqsBytes);
 
                     reviewFreqs = GroupVarint.decode(reviewFreqsBytes);
-                    //System.out.println(reviewFreqs);
                 }
 
 
