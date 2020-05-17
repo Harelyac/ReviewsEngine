@@ -16,7 +16,7 @@ public class Lexicon {
 
 
     // create one big encoded string out of all the terms in table keys
-    public void write(String filename1, String filename2) throws IOException {
+    public void write(String filename1, String filename2, String dir) throws IOException {
 
         List<List<String>> blocks = convertMapToBlocks();
         String prefix, suffix , term;
@@ -47,13 +47,13 @@ public class Lexicon {
             }
         }
 
-        BufferedWriter writer = new BufferedWriter(new FileWriter(filename1));
+        BufferedWriter writer = new BufferedWriter(new FileWriter(dir + "//" + filename1));
         writer.write(lexStr.toString());
         writer.close();
 
         // writing the full table into serialized file
         List<Map<String, Integer>> rows = new ArrayList<>(this.table.values());
-        FileOutputStream fos = new FileOutputStream(filename2);
+        FileOutputStream fos = new FileOutputStream(dir + "//" + filename2);
         ObjectOutputStream oos = new ObjectOutputStream(fos);
         oos.writeObject(rows);
         oos.close();

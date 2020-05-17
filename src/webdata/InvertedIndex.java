@@ -19,14 +19,14 @@ public class InvertedIndex {
     }
 
     // here we put info into table, then write the pl into file (the reviews id + their freqs
-    public void write(Lexicon lex, String  file_path) throws IOException {
+    public void write(Lexicon lex, String  file_path, String dir) throws IOException {
         int ptr = 0;
         byte[] encoded_reveiwsIds, encoded_freqs = new byte[0]; // FIXME - maybe this will cause future problems
         RandomAccessFile file = null;
 
         try
         {
-            file = new RandomAccessFile(file_path, "rw");
+            file = new RandomAccessFile(dir + "//" + file_path, "rw");
         }
         catch (Exception e){
             e.printStackTrace();

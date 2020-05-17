@@ -22,11 +22,11 @@ public class ReviewsIndex {
     }
 
     // use encode to write object files to disk mimic the writeobject method
-    public void write() {
+    public void write(String dir) {
 
         try
         {
-            RandomAccessFile file = new RandomAccessFile(REVIEWS_DATA, "rw");
+            RandomAccessFile file = new RandomAccessFile(dir + "//" + REVIEWS_DATA, "rw");
             for (ReviewData rd : index.values())
             {
                 byte[] Bytes = (rd.toString() + "\t".repeat(25 - rd.toString().getBytes().length) + "\n").getBytes();

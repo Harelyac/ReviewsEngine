@@ -6,8 +6,9 @@ import java.util.*;
 public class IndexReader {
     private static final String WORDS_STRING_FILENAME = "words_lex_string.txt";
     private static final String WORDS_TABLE_FILENAME = "words_lex_table.ser";
-    private static final String WORDS_POSTING_LISTS = "posting_list_of_words.txt";
+    private static final String WORDS_POSTING_LISTS = "posting_lists_of_words.txt";
 
+    // FIXME check that later
     private static final String PRODUCTS_STRING_FILENAME = "products_lex_string.txt";
     private static final String PRODUCTS_TABLE_FILENAME = "products_lex_table.ser";
     private static final String PRODUCTS_POSTING_LISTS = "posting_lists_of_productsIds.txt";
@@ -15,7 +16,7 @@ public class IndexReader {
     private static final String REVIEWS_DATA = "reviews_data.txt";
 
 
-    File file;
+    String directory;
     ReviewData curr_review;
     int last_review_id;
     int number_of_reviews;
@@ -23,7 +24,9 @@ public class IndexReader {
 
     List<Map<String, Integer>> table;
     String lexStr;
-    PostingList curr_pl; // load posting lists and frequencies
+    List<Integer> curr_pl; // load posting lists and frequencies
+
+    // here if we load pl of token we will update last token and reset product id to "" and the other way around
     String last_token;
     String last_productId;
 
@@ -31,14 +34,14 @@ public class IndexReader {
      * Creates an IndexReader which will read from the given directory
      */
     public IndexReader(String dir) {
-        file = new File(dir);
+        directory = dir;
         curr_review = new ReviewData();
         last_review_id = 0;
         number_of_reviews = 0;
 
         table = new ArrayList<>();
-        String lexStr = "";
-        curr_pl = new PostingList();
+        lexStr = "";
+        curr_pl = new ArrayList<>();
         last_token = "";
         last_productId = "";
     }
@@ -104,12 +107,18 @@ public class IndexReader {
         int index = binarySearch(token);
 
         indexIDs = this.table.get(index).get("pl_reviewsIds_ptr");
-        indexFreqs = this.table.get(index).get("pl_reviewsFreqs_ptr");
         indexNextIDs = this.table.get(index + 1).get("pl_reviewsIds_ptr");
+
+        indexFreqs = indexNextIDs; // if we deal with productIds
+
+        if (filename.equals(WORDS_POSTING_LISTS)){
+            indexFreqs = this.table.get(index).get("pl_reviewsFreqs_ptr");
+        }
+
 
         try
         {
-            RandomAccessFile file = new RandomAccessFile(filename, "rw");
+            RandomAccessFile file = new RandomAccessFile(directory + "//" + filename, "rw");
             file.seek(indexIDs);
             byte [] reviewIdsBytes = new byte[indexFreqs - indexIDs];
             file.read(reviewIdsBytes);
@@ -135,7 +144,10 @@ public class IndexReader {
             for (int i = 0; i < reviewIds.size(); i++)
             {
                 curr_sum += reviewIds.get(i); // calculate id base on diffs
-                curr_pl.freqMap.put(curr_sum, reviewFreqs.get(i));
+                curr_pl.add(curr_sum);
+                if (filename.equals(WORDS_POSTING_LISTS)) {
+                    curr_pl.add(reviewFreqs.get(i));
+                }
             }
         }
 
@@ -154,7 +166,7 @@ public class IndexReader {
 
         try
         {
-            BufferedReader br = new BufferedReader(new FileReader(lexStrFile));
+            BufferedReader br = new BufferedReader(new FileReader(directory + "//" + lexStrFile));
             lexStr = br.readLine();
         }
         catch (Exception e1)
@@ -163,7 +175,7 @@ public class IndexReader {
         }
 
         try {
-            FileInputStream fileIn = new FileInputStream(lextableFile);
+            FileInputStream fileIn = new FileInputStream(directory + "//" + lextableFile);
             ObjectInputStream objectIn = new ObjectInputStream(fileIn);
             table = (List<Map<String, Integer>>) objectIn.readObject();
         }
@@ -187,7 +199,7 @@ public class IndexReader {
         String data;
         try
         {
-            RandomAccessFile file = new RandomAccessFile(REVIEWS_DATA, "rw");
+            RandomAccessFile file = new RandomAccessFile(directory + "//" + REVIEWS_DATA, "rw");
 
             // get number of reviews
             if (number_of_reviews == 0) {
@@ -289,9 +301,10 @@ public class IndexReader {
         if (token != last_token) {
             readPostingList(token, WORDS_POSTING_LISTS);
             last_token = token;
+            last_productId = "";
         }
 
-        return curr_pl.freqMap.size();
+        return curr_pl.size() / 2;
     }
 
     /**
@@ -303,8 +316,8 @@ public class IndexReader {
         if (getTokenFrequency(token) != 0){
             int sum = 0;
             // sum all the reviews freqs for a given token
-            for (int freq : curr_pl.freqMap.values()){
-                sum += freq;
+            for (int i = 1; i < curr_pl.size() - 2; i+=2){
+                sum += curr_pl.get(i);
             }
 
             return sum;
@@ -324,7 +337,7 @@ public class IndexReader {
 
     public Enumeration<Integer> getReviewsWithToken(String token) {
         if (getTokenFrequency(token) != 0){
-            //return curr_pl.freqMap.entrySet().toArray();
+            return Collections.enumeration(curr_pl);
         }
 
         return new Enumeration<Integer>() {
@@ -385,21 +398,32 @@ public class IndexReader {
      * Returns an empty Enumeration if there are no reviews for this product
      */
     public Enumeration<Integer> getProductReviews(String productId) {
-        if (getTokenFrequency(productId) != 0){
-            //return curr_pl.freqMap; // FIXME
+        if (table.isEmpty() | lexStr == null){
+            readLexicon(PRODUCTS_STRING_FILENAME, PRODUCTS_TABLE_FILENAME);
         }
 
-        return new Enumeration<Integer>() {
-            @Override
-            public boolean hasMoreElements() {
-                return false;
-            }
+        if (productId != last_productId) {
+            readPostingList(productId, PRODUCTS_POSTING_LISTS);
+            last_productId = productId;
+            last_token = "";
+        }
+        if (curr_pl.isEmpty()){
+            return Collections.enumeration(curr_pl);
+        }
 
-            @Override
-            public Integer nextElement() {
-                return null;
-            }
-        };
+        else
+        {
+            return new Enumeration<Integer>() {
+                @Override
+                public boolean hasMoreElements() {
+                    return false;
+                }
 
+                @Override
+                public Integer nextElement() {
+                    return null;
+                }
+            };
+        }
     }
 }

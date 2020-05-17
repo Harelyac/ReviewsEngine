@@ -12,7 +12,7 @@ public class SlowIndexWriter {
 
     private static final String WORDS_STRING_FILENAME = "words_lex_string.txt";
     private static final String WORDS_TABLE_FILENAME = "words_lex_table.ser";
-    private static final String WORDS_POSTING_LISTS = "posting_list_of_words.txt";
+    private static final String WORDS_POSTING_LISTS = "posting_lists_of_words.txt";
 
     private static final String PRODUCTS_STRING_FILENAME = "products_lex_string.txt";
     private static final String PRODUCTS_TABLE_FILENAME = "products_lex_table.ser";
@@ -25,6 +25,7 @@ public class SlowIndexWriter {
      * dir is the directory in which all index files will be created
      * if the directory does not exist, it should be created
      */
+
     Lexicon wordsLex, productsLex;
     InvertedIndex productIdIndex, wordsIndex;
     ReviewsIndex reviewsIndex;
@@ -39,23 +40,25 @@ public class SlowIndexWriter {
         this.wordsLex = new Lexicon(BLOCK_SIZE);
     }
 
-    public void slowWrite(String inputFile) throws IOException {
-        parseFile(inputFile);
-        writeIndexFiles();
+    public void slowWrite(String inputFile, String dir) throws IOException {
+        parseFile(dir + "//" + inputFile);
+        writeIndexFiles(dir);
     }
 
-    private void writeIndexFiles() throws IOException {
+
+
+    private void writeIndexFiles(String dir) throws IOException {
         // writing reviews data to disk
-        reviewsIndex.write();
+        reviewsIndex.write(dir);
 
         // writing encoded posting lists to disk (before encoding lexicons - to get data on posting lists location on disk)
-        wordsIndex.write(wordsLex, WORDS_POSTING_LISTS);
-        productIdIndex.write(productsLex, PRODUCTS_POSTING_LISTS);
+        wordsIndex.write(wordsLex, WORDS_POSTING_LISTS, dir);
+        productIdIndex.write(productsLex, PRODUCTS_POSTING_LISTS, dir);
 
 
         // writing encoded lexicons to disk (table without words + the big string)
-        wordsLex.write(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
-        productsLex.write(PRODUCTS_STRING_FILENAME, PRODUCTS_TABLE_FILENAME);
+        wordsLex.write(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME, dir);
+        productsLex.write(PRODUCTS_STRING_FILENAME, PRODUCTS_TABLE_FILENAME, dir);
     }
 
     private void parseFile(String inputFile) {
@@ -119,9 +122,10 @@ public class SlowIndexWriter {
         }
     }
 
+    // [^a-zA-Z0-9]+
     private String getToken(StringTokenizer tokenizer) {
         String token = tokenizer.nextToken().toLowerCase();
-        token = token.replaceAll("[\\/]*[\\d]*(<\\w>)*[\\/]*[\\s\t\b]*", "");
+        token = token.replaceAll("[\\/]*[\\d]*(<\\w>)*[\\/]*[\\s\\t\b]*", "");
         return token;
     }
 
@@ -134,5 +138,12 @@ public class SlowIndexWriter {
      * Delete all index files by removing the given directory
      */
     public void removeIndex(String dir) {
+        File folder = new File(dir);
+
+        for (File file : folder.listFiles()){
+            if (file.getName().endsWith(".txt") | file.getName().endsWith(".ser")){
+                file.delete();
+            }
+        }
     }
 }

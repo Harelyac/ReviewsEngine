@@ -2,10 +2,7 @@ package webdata;
 
 import java.io.*;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Stream;
 
 
@@ -13,11 +10,15 @@ public class Main {
     public static void main(String[] args) throws IOException {
 
         SlowIndexWriter siw = new SlowIndexWriter();
-        siw.slowWrite("src/webdata/100.txt");
+        siw.slowWrite("1000.txt", "src//webdata");
+        IndexReader ir = new IndexReader("src//webdata");
+        String token = "a";
+        Enumeration<Integer> Enum =  ir.getProductReviews("B00813GRG4");
 
-        IndexReader ir = new IndexReader("ReviewsData.txt"); // FIXME - CHAGE TO DIR NOT SPECIFIC FILE
-        String token = "at";
-        System.out.println(ir.getTokenSizeOfReviews());
+        while(Enum.hasMoreElements())
+        {
+            System.out.println(Enum.nextElement());
+        }
 
         //test();
     }
