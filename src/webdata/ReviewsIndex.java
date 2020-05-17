@@ -4,16 +4,18 @@ import javax.swing.plaf.basic.BasicBorders;
 import java.io.*;
 import java.util.Hashtable;
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 
 public class ReviewsIndex {
     private static final String REVIEWS_DATA = "reviews_data.txt";
     public int tokenCount;
 
-    Map<Integer, ReviewData> index;
+    SortedMap<Integer, ReviewData> index;
     public ReviewsIndex()
     {
-        this.index = new Hashtable<>();
+        this.index = new TreeMap<>();
         tokenCount = 0;
     }
 
