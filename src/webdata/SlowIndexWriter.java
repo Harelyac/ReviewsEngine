@@ -127,6 +127,7 @@ public class SlowIndexWriter {
         return token;
     }
 
+
     private String getProductIdToken(StringTokenizer tokenizer) {
         return tokenizer.nextToken().toLowerCase();
     }

@@ -63,6 +63,7 @@ public class IndexReader {
         int index;
         int next_index;
 
+
         while (right > left)
         {
             index = this.table.get(middle).get("term_ptr");
@@ -88,6 +89,9 @@ public class IndexReader {
                         {
                             return middle + (i - 1);
                         }
+                    }
+                    if (right - left == 4){
+                        return -1;
                     }
                 }
             }
@@ -122,65 +126,67 @@ public class IndexReader {
         long indexIDs, indexFreqs, indexNextIDs;
         int index = binarySearch(token.toLowerCase());
 
-        indexIDs = this.table.get(index).get("pl_reviewsIds_ptr");
-
-        indexNextIDs = 0;
-        if (index != this.table.size() - 1){
-            indexNextIDs = this.table.get(index + 1).get("pl_reviewsIds_ptr");
-        }
-
-        indexFreqs = 0;
-        if (filename.equals(WORDS_POSTING_LISTS)){
-            indexFreqs = this.table.get(index).get("pl_reviewsFreqs_ptr");
-        }
-
-
-        try
+        if (index != -1)
         {
-            RandomAccessFile file = new RandomAccessFile(directory + "//" + filename, "rw");
-            file.seek(indexIDs);
-            if (indexFreqs == 0){
-                indexFreqs = file.length();
+            indexIDs = this.table.get(index).get("pl_reviewsIds_ptr");
+
+            indexNextIDs = 0;
+            if (index != this.table.size() - 1){
+                indexNextIDs = this.table.get(index + 1).get("pl_reviewsIds_ptr");
             }
-            byte [] reviewIdsBytes = new byte[(int)(indexFreqs - indexIDs)];
-            file.read(reviewIdsBytes);
 
-            List<Integer> reviewIds = new ArrayList<>();
-            reviewIds = GroupVarint.decode(reviewIdsBytes);
-            //System.out.println(reviewIds);
-
-            List<Integer> reviewFreqs = new ArrayList<>();
+            indexFreqs = 0;
             if (filename.equals(WORDS_POSTING_LISTS)){
-
-                file.seek(indexFreqs);
-                if (indexNextIDs == 0){
-                    indexNextIDs = file.length();
-                }
-                byte [] reviewFreqsBytes = new byte[(int)(indexNextIDs - indexFreqs)];
-                file.read(reviewFreqsBytes);
-
-                reviewFreqs = GroupVarint.decode(reviewFreqsBytes);
-                //System.out.println(reviewFreqs);
+                indexFreqs = this.table.get(index).get("pl_reviewsFreqs_ptr");
             }
 
 
-            int curr_sum = 0;
-            // initialize posting list with values being read
-            for (int i = 0; i < reviewIds.size(); i++)
+            try
             {
-                curr_sum += reviewIds.get(i); // calculate id base on diffs
-                curr_pl.add(curr_sum);
-                if (filename.equals(WORDS_POSTING_LISTS)) {
-                    curr_pl.add(reviewFreqs.get(i));
+                RandomAccessFile file = new RandomAccessFile(directory + "//" + filename, "rw");
+                file.seek(indexIDs);
+                if (indexFreqs == 0){
+                    indexFreqs = file.length();
+                }
+                byte [] reviewIdsBytes = new byte[(int)(indexFreqs - indexIDs)];
+                file.read(reviewIdsBytes);
+
+                List<Integer> reviewIds = new ArrayList<>();
+                reviewIds = GroupVarint.decode(reviewIdsBytes);
+                //System.out.println(reviewIds);
+
+                List<Integer> reviewFreqs = new ArrayList<>();
+                if (filename.equals(WORDS_POSTING_LISTS)){
+
+                    file.seek(indexFreqs);
+                    if (indexNextIDs == 0){
+                        indexNextIDs = file.length();
+                    }
+                    byte [] reviewFreqsBytes = new byte[(int)(indexNextIDs - indexFreqs)];
+                    file.read(reviewFreqsBytes);
+
+                    reviewFreqs = GroupVarint.decode(reviewFreqsBytes);
+                    //System.out.println(reviewFreqs);
+                }
+
+
+                int curr_sum = 0;
+                // initialize posting list with values being read
+                for (int i = 0; i < reviewIds.size(); i++)
+                {
+                    curr_sum += reviewIds.get(i); // calculate id base on diffs
+                    curr_pl.add(curr_sum);
+                    if (filename.equals(WORDS_POSTING_LISTS)) {
+                        curr_pl.add(reviewFreqs.get(i));
+                    }
                 }
             }
-        }
 
-        catch (IOException e1)
-        {
-            e1.printStackTrace();
+            catch (IOException e1)
+            {
+                e1.printStackTrace();
+            }
         }
-
     }
 
     /**
