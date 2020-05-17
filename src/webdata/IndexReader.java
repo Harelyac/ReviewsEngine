@@ -44,6 +44,25 @@ public class IndexReader {
         curr_pl = new ArrayList<>();
         last_token = "";
         last_productId = "";
+
+        init();
+    }
+    private void init(){
+        RandomAccessFile file = null;
+        try {
+            file = new RandomAccessFile(directory + "//" + REVIEWS_DATA, "rw");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        // get number of reviews
+        if (number_of_reviews == 0) {
+            try {
+                number_of_reviews = (int) (file.length() / 26);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
 
@@ -52,74 +71,125 @@ public class IndexReader {
      * @param token
      * @return if token not found returns -1
      */
-    public int binarySearch(String token){
-        String temp, head_word, block;
-        String [] block_words;
+//    public int binarySearch(String token){
+//        String prefix;
+//        String temp, head_word, block;
+//        String [] block_words;
+//        int index, next_index;
+//        int BLOCK_SIZE = 4;
+//        int right = table.size()-1, left = 0;
+//        System.out.println(lexStr);
+//        // getting into middle index that dividable by zero, the idea is moving only on head of each block
+//        int middle = ((right + left) / 2);
+//        middle = middle - middle % BLOCK_SIZE;
+//
+//
+//        while (right > left)
+//        {
+//            index = table.get(middle).get("term_ptr");
+//            next_index = lexStr.length();
+//            System.out.println(next_index);
+//            if (middle <= table.size() - BLOCK_SIZE){
+//                next_index = table.get(middle + 4).get("term_ptr");
+//            }
+//            block = lexStr.substring(index + 1, next_index);
+//            System.out.println("block = "+block);
+//            block_words = block.split("\\P{Alpha}+");
+//
+//
+//            for (String w :
+//                    block_words) {
+//                System.out.println("block word: " + w);
+//            }
+//
+//            if (block_words.length > 1){
+//                prefix = block_words[0];
+//                head_word =  prefix + block_words[1];
+//                if (token.compareTo(prefix) == 0)
+//                {
+//                    for (int i = 0; i < block_words.length; i++) {
+//                        String term = prefix + block_words[i];
+//                        System.out.println("term");
+//                        System.out.println(term);
+//                        if (token.equals(term)){
+//                            return middle;
+//                        }
+//                    }
+//                }
+//                else if (token.compareTo(prefix) > 0)
+//                {
+//                    System.out.println("token = " + token + ", left = " + left + ", right = " + right + ", middle = " + middle);
+//                    if (left < middle) {
+//                        left = middle;
+//                    }
+//                    else
+//                        {
+//                        left+=4;
+//                    }
+//                }
+//                else if (token.compareTo(prefix) < 0)
+//                {
+//                    right = middle;
+//                }
+//
+//            }
+//
+//            // we are not on correct block
+//            middle = ((right + left) / 2) + (4 - (((right + left) / 2) % 4));
+//            System.out.println("token = " + token + ", left = " + left + ", right = " + right + ", middle = " + middle);
+//        }
+//        return -1;
+//    }
 
-        int right = this.table.size(), left = 0;
-
-        // getting into middle index that dividable by zero, the idea is moving only on head of each block
-        int middle = ((right + left) / 2) + (4 - (((right + left) / 2) % 4));
-        int index;
-        int next_index;
-
-
-        while (right > left)
-        {
-            index = this.table.get(middle).get("term_ptr");
-
+    public int binarySearch(String token)
+    {
+        int block_ptr, next_index;
+        int BLOCK_SIZE = 4;
+        int l = 0, r = table.size() - 1;
+        System.out.println(lexStr);
+        while (l <= r) {
+            int m = l + (r - l) / 2;
+            m = m - (m % BLOCK_SIZE);
+            block_ptr = table.get(m).get("term_ptr");
             next_index = lexStr.length();
-            if (middle <= this.table.size() - 4){
-                next_index = this.table.get(middle + 4).get("term_ptr");
-            }
+            String block = lexStr.substring(block_ptr + 1, next_index);
+            System.out.println(block);
 
+            String[] block_words = block.split("\\P{Alpha}+");
+            String prefix = block_words[0];
 
-            block = this.lexStr.substring(index + 1, next_index);
-            block_words = block.split("[^A-Za-z]{1,2}");
+            System.out.println("token = " + token + ", left = " + l + ", right = " + r + ", middle = " + m);
+            int res = token.compareTo(prefix);
 
-            if (block_words.length > 1){
-                head_word =  block_words[0] + block_words[1];
-
-                // we are on correct block
-                if ((right - left) % 4 == 0 | token.equals(block_words[0] + block_words[1]))
-                {
-                    for (int i = 1; i < block_words.length; i++)
-                    {
-                        if (token.equals(block_words[0] + block_words[i]))
-                        {
-                            return middle + (i - 1);
-                        }
-                    }
-                    if (right - left == 4){
-                        return -1;
+            // Check if x is present at mid
+            if (res == 0 || prefix.equals("")) {
+                for (int i = 1; i < 4; i++) {
+                    String term = prefix + block_words[i];
+                    if (token.equals(term)) {
+                        return i + m;
                     }
                 }
-            }
-            else{
-                head_word =  block_words[0];
-                if (token.equals(block_words[0]))
+                if (prefix.equals(""))
                 {
-                    return middle;
+                    l = m + 1;
+                    continue;
                 }
+                return -1;
+            }
+            // If x greater, ignore left half
+            else if (res > 0) {
+                l = m + 1;
             }
 
-
-
-            // we are not on correct block
-            if (token.compareTo(head_word) > 0)
-            {
-                left = middle;
+                // If x is smaller, ignore right half
+            else {
+                r = m - 1;
             }
-            else
-            {
-                right = middle;
-            }
-
-            middle = ((right + left) / 2) + (4 - (((right + left) / 2) % 4));
         }
 
         return -1;
     }
+
 
 
     public void readPostingList(String token, String filename){
@@ -128,16 +198,16 @@ public class IndexReader {
 
         if (index != -1)
         {
-            indexIDs = this.table.get(index).get("pl_reviewsIds_ptr");
+            indexIDs = table.get(index).get("pl_reviewsIds_ptr");
 
             indexNextIDs = 0;
-            if (index != this.table.size() - 1){
-                indexNextIDs = this.table.get(index + 1).get("pl_reviewsIds_ptr");
+            if (index != table.size() - 1){
+                indexNextIDs = table.get(index + 1).get("pl_reviewsIds_ptr");
             }
 
             indexFreqs = 0;
             if (filename.equals(WORDS_POSTING_LISTS)){
-                indexFreqs = this.table.get(index).get("pl_reviewsFreqs_ptr");
+                indexFreqs = table.get(index).get("pl_reviewsFreqs_ptr");
             }
 
 
@@ -197,18 +267,12 @@ public class IndexReader {
 
         try
         {
-            BufferedReader br = new BufferedReader(new FileReader(directory + "//" + lexStrFile));
-            lexStr = br.readLine();
-        }
-        catch (Exception e1)
-        {
-            e1.printStackTrace();
-        }
-
-        try {
+            RandomAccessFile br = new RandomAccessFile(directory + "//" + lexStrFile, "r");
+            lexStr = br.readLine().replaceAll("[^\\p{Graph}\r\t\n ]", "");;
             FileInputStream fileIn = new FileInputStream(directory + "//" + lextableFile);
             ObjectInputStream objectIn = new ObjectInputStream(fileIn);
             table = (List<Map<String, Integer>>) objectIn.readObject();
+            br.close();
         }
         catch (Exception e1)
         {
@@ -218,8 +282,6 @@ public class IndexReader {
         return true;
     }
 
-
-
     /**
      *
      * @param reviewId
@@ -227,15 +289,10 @@ public class IndexReader {
      * return exit code
      */
     public boolean readReview(int reviewId){
-        String data;
+
         try
         {
             RandomAccessFile file = new RandomAccessFile(directory + "//" + REVIEWS_DATA, "rw");
-
-            // get number of reviews
-            if (number_of_reviews == 0) {
-                number_of_reviews = (int) (file.length() / 26);
-            }
 
             // check review id range validity
             if (reviewId < 0 || reviewId > number_of_reviews)
@@ -244,11 +301,15 @@ public class IndexReader {
             }
 
             file.seek((reviewId - 1) * 26);
+
             byte [] bytes = new byte[26];
             file.read(bytes);
-            data = new String(bytes);
+            String data = new String(bytes);
             curr_review.initialize(data.split("\t")[0].split(","));
             last_review_id = reviewId;
+
+            // get number of reviews
+            number_of_reviews = (int) (file.length() / 26);
         }
 
         catch (IOException e1)
@@ -329,7 +390,7 @@ public class IndexReader {
             readLexicon(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
         }
 
-        if (token != last_token) {
+        if (!token.equals(last_token)) {
             readPostingList(token, WORDS_POSTING_LISTS);
             last_token = token;
             last_productId = "";
@@ -389,10 +450,7 @@ public class IndexReader {
      * Return the number of product reviews available in the system
      */
     public int getNumberOfReviews() {
-        if (number_of_reviews == 0){
-            readReview(1); // read first review in order to initialize the number of reviews variable
-        }
-
+        readReview(1); // read first review in order to initialize the number of reviews variable
         return number_of_reviews;
     }
 

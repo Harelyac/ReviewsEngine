@@ -19,18 +19,9 @@ public class InvertedIndex {
     }
 
     // here we put info into table, then write the pl into file (the reviews id + their freqs
-    public void write(Lexicon lex, String  file_path, String dir)  {
+    public void write(Lexicon lex, String file_path, String dir) {
         int ptr = 0;
         byte[] encoded_reveiwsIds, encoded_freqs = new byte[0]; // FIXME - maybe this will cause future problems
-        RandomAccessFile file = null;
-
-        try
-        {
-            file = new RandomAccessFile(dir + "//" + file_path, "rw");
-        }
-        catch (Exception e){
-            e.printStackTrace();
-        }
 
 
         // first use posting list and update information into lexicon
@@ -46,7 +37,7 @@ public class InvertedIndex {
             encoded_reveiwsIds = GroupVarint.encode(docList);
             ptr += encoded_reveiwsIds.length;
 
-            if (file_path.equals("posting_lists_of_words.txt")){
+            if (file_path.equals("posting_lists_of_words.txt")) {
                 row.put("pl_reviewsFreqs_ptr", ptr); // saving beginning of reviews's frequencies
                 List<Integer> docFreqList = new ArrayList<>(pl.freqMap.values());
                 encoded_freqs = GroupVarint.encode(docFreqList);
@@ -57,25 +48,20 @@ public class InvertedIndex {
             // Building lexicon table
             lex.table.put(token, row);
 
-            try
-            {
+            try {
+                RandomAccessFile file;
+                file = new RandomAccessFile(dir + "//" + file_path, "rw");
+                file.setLength(0);
                 file.write(encoded_reveiwsIds);
-                if (file_path.equals("posting_lists_of_words.txt")){
+                if (file_path.equals("posting_lists_of_words.txt")) {
                     file.write(encoded_freqs);
                 }
-            }
-
-            catch (IOException e) {
+                file.close();
+            } catch (IOException e) {
                 e.printStackTrace();
             }
-        }
 
-        try {
-            file.close();
-        }
-       catch (Exception e){
-            e.printStackTrace();
-       }
 
+        }
     }
 }

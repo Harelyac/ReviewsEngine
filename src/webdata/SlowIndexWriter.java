@@ -71,7 +71,7 @@ public class SlowIndexWriter {
                     continue;
                 }
 
-                StringTokenizer tokenizer = new StringTokenizer(line, ":(),-'!\".<>+ $&");
+                StringTokenizer tokenizer = new StringTokenizer(line, ":(),-'!\".<>+ $&@");
                 String firstToken = tokenizer.nextToken();
                 String token;
 

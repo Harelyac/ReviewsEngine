@@ -27,14 +27,16 @@ public class Lexicon {
             term = block.get(i);
 
 
-            length = this.table.get(term).get("length");
+            length = table.get(term).get("length");
             prefix = getBlockCommonPrefix(block);
             suffix = getSuffix(term, prefix);
 
             lexStr.append(length);
 
             // saving the location of the first term for each block
-            this.table.get(term).put("term_ptr",lexStr.length() - 1);
+            int term_ptr = lexStr.length() - 1;
+            table.get(term).put("term_ptr",term_ptr);
+            System.out.println(term + " ptr: " + (lexStr.length() -1));
 
             lexStr.append(prefix).append("*").append(suffix);
 
@@ -42,16 +44,15 @@ public class Lexicon {
                 term = block.get(i);
                 suffix = getSuffix(term, prefix);
                 gapSize = term.length() - prefix.length();
-
-                lexStr.append(gapSize).append("♢").append(suffix);
+                lexStr.append(gapSize).append("@").append(suffix);
             }
         }
 
         try{
-            BufferedWriter writer = new BufferedWriter(new FileWriter(dir + "//" + filename1));
-            writer.write(lexStr.toString());
-            writer.close();
-
+            RandomAccessFile file = new RandomAccessFile(dir + "//" + filename1, "rw");
+            file.setLength(0);
+            file.writeChars(lexStr.toString());
+            file.close();
             // writing the full table into serialized file
             List<Map<String, Integer>> rows = new ArrayList<>(this.table.values());
             FileOutputStream fos = new FileOutputStream(dir + "//" + filename2);
