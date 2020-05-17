@@ -146,10 +146,10 @@ public class IndexReader {
         int block_ptr, next_index;
         int BLOCK_SIZE = 4;
         int l = 0, r = table.size() - 1;
+        int m = l + (r - l) / 2;
+        m = m - (m % BLOCK_SIZE);
         System.out.println(lexStr);
         while (l <= r) {
-            int m = l + (r - l) / 2;
-            m = m - (m % BLOCK_SIZE);
             block_ptr = table.get(m).get("term_ptr");
             next_index = lexStr.length();
             String block = lexStr.substring(block_ptr + 1, next_index);
@@ -163,27 +163,39 @@ public class IndexReader {
 
             // Check if x is present at mid
             if (res == 0 || prefix.equals("")) {
-                for (int i = 1; i < 4; i++) {
-                    String term = prefix + block_words[i];
+                int i;
+                String term;
+                for (i = 1; i < 5; i++) {
+                    term = prefix + block_words[i];
                     if (token.equals(term)) {
-                        return i + m;
+                        return i + m - 1;
                     }
                 }
                 if (prefix.equals(""))
                 {
-                    l = m + 1;
-                    continue;
+                    res = token.compareTo(block_words[i]);
                 }
-                return -1;
+                else {
+                    return -1;
+                }
             }
             // If x greater, ignore left half
-            else if (res > 0) {
-                l = m + 1;
+            if (res > 0) {
+                l = m + BLOCK_SIZE;
             }
 
                 // If x is smaller, ignore right half
             else {
-                r = m - 1;
+                r = m - BLOCK_SIZE;
+            }
+            int new_m = (l + (r - l) / 2);
+            new_m = new_m - (new_m % BLOCK_SIZE);
+            if (new_m == m)
+            {
+                return - 1;
+            }
+            else{
+                 m = new_m;
             }
         }
 
@@ -201,7 +213,7 @@ public class IndexReader {
             indexIDs = table.get(index).get("pl_reviewsIds_ptr");
 
             indexNextIDs = 0;
-            if (index != table.size() - 1){
+            if (index < table.size()){
                 indexNextIDs = table.get(index + 1).get("pl_reviewsIds_ptr");
             }
 
