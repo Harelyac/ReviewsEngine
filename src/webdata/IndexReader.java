@@ -180,7 +180,7 @@ public class IndexReader {
                     reviewFreqs = GroupVarint.decode(reviewFreqsBytes);
                 }
 
-
+                curr_pl.clear();
                 int curr_sum = 0;
                 // initialize posting list with values being read
                 for (int i = 0; i < reviewIds.size(); i++)
@@ -322,16 +322,16 @@ public class IndexReader {
                 return -1;
             }
         }
-        return curr_review.length;
+        return curr_review.length - 1;
     }
     /**
      * Return the number of reviews containing a given token (i.e., word)
      * Returns 0 if there are no reviews containing this token
      */
     public int getTokenFrequency(String token) {
-        if (table.isEmpty() | lexStr == null | last_token.equals("")){
-            readLexicon(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
-        }
+//        if (table.isEmpty() | lexStr == null | last_token.equals("")){
+        readLexicon(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
+//        }
 
         if (!token.equals(last_token)) {
             if (!readPostingList(token, WORDS_POSTING_LISTS)){
@@ -373,6 +373,7 @@ public class IndexReader {
 
     public Enumeration<Integer> getReviewsWithToken(String token) {
         if (getTokenFrequency(token) != 0){
+            System.out.println(curr_pl);
             return Collections.enumeration(curr_pl);
         }
 
@@ -388,9 +389,9 @@ public class IndexReader {
             }
         };
 
-     }
+    }
 
-     /**
+    /**
      * Return the number of product reviews available in the system
      */
     public int getNumberOfReviews() {
@@ -431,9 +432,7 @@ public class IndexReader {
      * Returns an empty Enumeration if there are no reviews for this product
      */
     public Enumeration<Integer> getProductReviews(String productId) {
-        if (table.isEmpty() | lexStr == null | last_productId.equals("")){
-            readLexicon(PRODUCTS_STRING_FILENAME, PRODUCTS_TABLE_FILENAME);
-        }
+        readLexicon(PRODUCTS_STRING_FILENAME, PRODUCTS_TABLE_FILENAME);
 
         if (productId != last_productId) {
             readPostingList(productId, PRODUCTS_POSTING_LISTS);

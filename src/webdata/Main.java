@@ -13,7 +13,7 @@ public class Main {
         siw.slowWrite("1000.txt", "src//webdata");
         IndexReader ir = new IndexReader("src//webdata");
 
-        System.out.println(ir.getProductReviews("B006F2NYI2"));
+        System.out.println(ir.getTokenCollectionFrequency("to"));
 
         //test();
     }

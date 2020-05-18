@@ -86,10 +86,10 @@ public class SlowIndexWriter {
                         }
                         break;
                     case "review/score":
-                        token = getToken(tokenizer);
+                        token = tokenizer.nextToken();
                         if (!token.isEmpty()) {
                             int num = Integer.parseInt(token);
-                            int dec = Integer.parseInt(getToken(tokenizer));
+                            int dec = Integer.parseInt(tokenizer.nextToken());
                             review.score = num + (dec * 0.1);
                         }
                         break;
@@ -97,7 +97,7 @@ public class SlowIndexWriter {
                         token = tokenizer.nextToken();
                         if (!token.isEmpty()) {
                             review.helpfulnessNumerator = Integer.parseInt(token.split("/")[0]);
-                            review.helpfulnessDenominator = Integer.parseInt(token.split("/")[0]);
+                            review.helpfulnessDenominator = Integer.parseInt(token.split("/")[1]);
                         }
                         break;
                     case "review/text":
@@ -125,7 +125,8 @@ public class SlowIndexWriter {
 
     private String getToken(StringTokenizer tokenizer) {
         String token = tokenizer.nextToken().toLowerCase();
-        token = token.replaceAll("[^a-zA-Z0-9]+|([0-9]+)", "");
+        // |([0-9]+)
+        token = token.replaceAll("[^a-zA-Z0-9]+", "");
         return token;
     }
 

@@ -124,6 +124,7 @@ class IndexReaderTest {
 				assertEquals(expectedOutputs[i], (int)func.apply(inputs[i]), String.format(msgInt, inputs[i]));
 			}
 		}
+
 	}
 
 	@Nested
@@ -137,7 +138,6 @@ class IndexReaderTest {
 			int[] expectedOutputs = {2, 3, 2};
 			testTokenFrequency(inputs, expectedOutputs, indexReader::getTokenFrequency);
 		}
-
 
 		@Test
 		@DisplayName("Testing getTokenCollectionFrequency - valid inputs")
