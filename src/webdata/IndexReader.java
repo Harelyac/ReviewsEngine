@@ -93,7 +93,14 @@ public class IndexReader {
 
             String block = lexStr.substring(block_ptr, next_block_ptr);
 
-            String[] block_words = block.split("\\d\\@|\\*");
+            String[] block_words = block.split("([@]+)|([*]+)");
+
+            for (String w :
+                    block_words) {
+//                System.out.print(w + ", ");
+            }
+//            System.out.println();
+
             String prefix = block_words[0];
 
 
@@ -109,7 +116,7 @@ public class IndexReader {
                 // check if the token start with the prefix of the block
                 if (token.substring(0, Math.min(prefix.length(), token.length())).equals(prefix)) {
                     // check first 4 words in block
-                    for (int i = 1; i < 5; i++) {
+                    for (int i = 1; i < 5 && i < block_words.length; i++) {
                         term = prefix + block_words[i];
                         if (token.equals(term)) {
                             return i + m - 1;
@@ -324,6 +331,7 @@ public class IndexReader {
         }
         return curr_review.length;
     }
+
     /**
      * Return the number of reviews containing a given token (i.e., word)
      * Returns 0 if there are no reviews containing this token
