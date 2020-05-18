@@ -93,13 +93,7 @@ public class IndexReader {
 
             String block = lexStr.substring(block_ptr, next_block_ptr);
 
-            String[] block_words = block.split("([@]+)|([*]+)");
-
-            for (String w :
-                    block_words) {
-//                System.out.print(w + ", ");
-            }
-//            System.out.println();
+            String[] block_words = block.split("([@]+)|([*]+)|([|]+)");
 
             String prefix = block_words[0];
 
@@ -337,9 +331,7 @@ public class IndexReader {
      * Returns 0 if there are no reviews containing this token
      */
     public int getTokenFrequency(String token) {
-//        if (table.isEmpty() | lexStr == null | last_token.equals("")){
         readLexicon(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
-//        }
 
         if (!token.equals(last_token)) {
             if (!readPostingList(token, WORDS_POSTING_LISTS)){

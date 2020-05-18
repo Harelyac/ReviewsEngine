@@ -31,7 +31,7 @@ public class Lexicon {
             prefix = getBlockCommonPrefix(block);
             suffix = getSuffix(term, prefix);
 
-            lexStr.append(length);
+            lexStr.append("|");
 
             // saving the location of the first term for each block
             int term_ptr = lexStr.length() - 1;
@@ -42,7 +42,7 @@ public class Lexicon {
                 term = block.get(i);
                 suffix = getSuffix(term, prefix);
                 gapSize = term.length() - prefix.length();
-                lexStr.append(gapSize).append("@").append(suffix);
+                lexStr.append("@").append(suffix);
             }
         }
 

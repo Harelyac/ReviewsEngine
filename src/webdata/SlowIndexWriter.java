@@ -11,7 +11,6 @@ import java.util.*;
 
 public class SlowIndexWriter {
     private static final int BLOCK_SIZE = 4;
-    public int c = 0;
     private static final String WORDS_STRING_FILENAME = "words_lex_string.txt";
     private static final String WORDS_TABLE_FILENAME = "words_lex_table.ser";
     private static final String WORDS_POSTING_LISTS = "posting_lists_of_words.txt";
@@ -101,7 +100,7 @@ public class SlowIndexWriter {
                                 token = tokenizer.nextToken();
                                 if (!token.isEmpty()) {
                                     review.helpfulnessNumerator = Integer.parseInt(token);
-                                    tokenizer.nextToken();
+                                    token = tokenizer.nextToken();
                                     review.helpfulnessDenominator = Integer.parseInt(token);
                                 }
                                 break;
@@ -124,7 +123,6 @@ public class SlowIndexWriter {
                         }
                     }
                 }
-
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -133,17 +131,7 @@ public class SlowIndexWriter {
 
     private String getToken(StringTokenizer tokenizer) {
         String token = tokenizer.nextToken().toLowerCase();
-        String last = token;
-        // |([0-9]+)
-
         token = token.replaceAll("[^\\w_]+", "");
-        if (last.contains("/")) {
-            System.out.print(last);
-            System.out.println(token);
-        }
-        if (!token.equals("")) {
-            c++;
-        }
 
         return token;
     }
