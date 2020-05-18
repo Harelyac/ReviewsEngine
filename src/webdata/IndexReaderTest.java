@@ -11,7 +11,7 @@ import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndexReaderTest {
-	final static String dir = "C:\\Users\\harelyac\\IdeaProjects\\ReviewsEngine\\src\\webdata";
+	final static String dir = "C:\\Users\\harelyac\\OneDrive\\Desktop\\InfoRetrieval\\ReviewsEngine\\src\\webdata";
 	final static String indexDir = dir;
 	final static String inputFile = "1000.txt";
 	static private IndexReader indexReader;
@@ -139,6 +139,7 @@ class IndexReaderTest {
 			testTokenFrequency(inputs, expectedOutputs, indexReader::getTokenFrequency);
 		}
 
+
 		@Test
 		@DisplayName("Testing getTokenCollectionFrequency - valid inputs")
 		void getTokenCollectionFrequency() {
@@ -248,10 +249,10 @@ class IndexReaderTest {
 
 
 	/** comment for not checking removeIndex method of slowWriter!. */
-	@AfterAll
+/*	@AfterAll
 	static void removeDir(){
 		indexWriter.removeIndex(indexDir);
 		File directory = new File(indexDir);
 		assertFalse(directory.exists());
-	}
+	}*/
 }

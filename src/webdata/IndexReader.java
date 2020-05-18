@@ -73,68 +73,64 @@ public class IndexReader {
      * @param token
      * @return if token not found returns -1
      */
-    public int binarySearch(String token)
-    {
-        int block_ptr, next_index;
+    public int binarySearch(String token) {
+        int block_ptr, next_block_ptr;
         int BLOCK_SIZE = 4;
         int l = 0, r = table.size() - 1;
-        int m = l + (r - l) / 2;
+        int m = (r + l) / 2 ;
         m = m - (m % BLOCK_SIZE);
+        int result = 0;
+
 
         while (l <= r) {
-            block_ptr = table.get(m).get("term_ptr") +1;
-            next_index = lexStr.length();
-            String block = lexStr.substring(block_ptr , next_index);
+            block_ptr = table.get(m).get("term_ptr") + 1;
 
-            String[] block_words = block.split("\\P{Alpha}+");
+            next_block_ptr = lexStr.length();
+
+            if (m < table.size() - 1) {
+                next_block_ptr = table.get(m + BLOCK_SIZE).get("term_ptr");
+            }
+
+            String block = lexStr.substring(block_ptr, next_block_ptr);
+
+            String[] block_words = block.split("\\d\\@|\\*");
             String prefix = block_words[0];
 
-            // Check if x is present at mid
-            if (res == 0 || prefix.equals("")) {
-                int i;
-                String term;
-                if (token.equals(prefix) && block_words.length > 1 && block_words[1].equals("")) {
-                    return m;
-                }
-                for (i = 1; i < 5 && i < block_words.length; i++) {
-                    term = prefix + block_words[i];
-                    if (token.equals(term)) {
-                        return i + m - 1;
-                    }
-                }
-                if (prefix.equals("") && i < block_words.length)
-                {
-                    res = token.compareTo(block_words[i]);
-                    if (res == 0){
-                        return i + m - 1;
-                    }
-                }
-                else {
-                    return -1;
-                }
+
+            // check if we are lucky and the first word of block is the exact token
+            result = token.compareTo(prefix + block_words[1]);
+            if (result == 0) {
+                return m;
             }
-            if (res > 0) {
+
+            // if token is higher alphabetically
+            if (result > 0) {
+                String term;
+                // check if the token start with the prefix of the block
+                if (token.substring(0, prefix.length()).equals(prefix)) {
+                    // check first 4 words in block
+                    for (int i = 1; i < 5; i++) {
+                        term = prefix + block_words[i];
+                        if (token.equals(term)) {
+                            return i + m - 1;
+                        }
+                    }
+                }
+                // here we know for sure it's not in the current block
                 l = m + BLOCK_SIZE;
             }
 
+            // if token is lower alphabetically
             else {
-                r = m - BLOCK_SIZE;
+                r = m;
             }
-            int new_m = (l + (r - l) / 2);
-            new_m = new_m - (new_m % BLOCK_SIZE);
-            if (new_m == m)
-            {
-                return - 1;
-            }
-            else{
-                 m = new_m;
-            }
+
+            m = (r + l) / 2;
+            m = m - (m % BLOCK_SIZE);
         }
 
         return -1;
     }
-
-
 
     public void readPostingList(String token, String filename){
         long indexIDs, indexFreqs, indexNextIDs;
@@ -144,11 +140,13 @@ public class IndexReader {
         {
             indexIDs = table.get(index).get("pl_reviewsIds_ptr");
 
+            // check if index does not reach end of table
             indexNextIDs = 0;
             if (index < table.size()-1){
                 indexNextIDs = table.get(index + 1).get("pl_reviewsIds_ptr");
             }
 
+            // check if we have freqs at all
             indexFreqs = 0;
             if (filename.equals(WORDS_POSTING_LISTS)){
                 indexFreqs = table.get(index).get("pl_reviewsFreqs_ptr");
@@ -160,7 +158,7 @@ public class IndexReader {
                 RandomAccessFile file = new RandomAccessFile(directory + "//" + filename, "rw");
                 file.seek(indexIDs);
                 if (indexFreqs == 0){
-                    indexFreqs = file.length();
+                    indexFreqs = indexNextIDs;
                 }
                 byte [] reviewIdsBytes = new byte[(int)(indexFreqs - indexIDs)];
                 file.read(reviewIdsBytes);
@@ -210,7 +208,7 @@ public class IndexReader {
         try
         {
             RandomAccessFile br = new RandomAccessFile(directory + "//" + lexStrFile, "r");
-            lexStr = br.readLine().replaceAll("[^\\p{Graph}\r\t\n ]", "");;
+            lexStr = br.readLine().replaceAll("[^\\p{Graph}\r\t\n ]", "");
             FileInputStream fileIn = new FileInputStream(directory + "//" + lextableFile);
             ObjectInputStream objectIn = new ObjectInputStream(fileIn);
             table = (List<Map<String, Integer>>) objectIn.readObject();
@@ -237,7 +235,7 @@ public class IndexReader {
             RandomAccessFile file = new RandomAccessFile(directory + "//" + REVIEWS_DATA, "rw");
 
             // check review id range validity
-            if (reviewId < 0 || reviewId > number_of_reviews)
+            if (reviewId <= 0 || reviewId > number_of_reviews)
             {
                 return false;
             }
@@ -267,12 +265,12 @@ public class IndexReader {
      * Returns null if there is no review with the given identifier
      */
     public String getProductId(int reviewId){
-        if (reviewId != last_review_id){
+        if (reviewId != last_review_id | reviewId == 0){
             if(!readReview(reviewId)){
                 return null;
             }
         }
-        return curr_review.productId;
+        return curr_review.productId.toUpperCase();
 
     };
     /**
@@ -280,7 +278,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewScore(int reviewId) {
-        if (reviewId != last_review_id){
+        if (reviewId != last_review_id | reviewId == 0){
             if(!readReview(reviewId)){
                 return -1;
             }
@@ -292,7 +290,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewHelpfulnessNumerator(int reviewId) {
-        if (reviewId != last_review_id){
+        if (reviewId != last_review_id | reviewId == 0){
             if(!readReview(reviewId)){
                 return -1;
             }
@@ -304,7 +302,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewHelpfulnessDenominator(int reviewId) {
-        if (reviewId != last_review_id){
+        if (reviewId != last_review_id | reviewId == 0){
             if(!readReview(reviewId)){
                 return -1;
             }
@@ -316,7 +314,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewLength(int reviewId) {
-        if (reviewId != last_review_id){
+        if (reviewId != last_review_id | reviewId == 0){
             if(!readReview(reviewId)){
                 return -1;
             }
@@ -353,7 +351,6 @@ public class IndexReader {
             for (int i = 1; i < curr_pl.size(); i+=2){
                 sum += curr_pl.get(i);
             }
-
             return sum;
         }
 

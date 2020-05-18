@@ -71,9 +71,10 @@ public class SlowIndexWriter {
                     continue;
                 }
 
-                StringTokenizer tokenizer = new StringTokenizer(line, ":(),-'!\".<>+ $&@");
+                StringTokenizer tokenizer = new StringTokenizer(line, ":(),-'!\".<>+ $&@;");
                 String firstToken = tokenizer.nextToken();
                 String token;
+                int reviewTokenCount = 0;
 
                 switch (firstToken) {
                     case "product/productId":
@@ -105,9 +106,10 @@ public class SlowIndexWriter {
                             if (!token.isEmpty()) {
                                 wordsIndex.updateIndex(token, reviewId);
                                 reviewsIndex.tokenCount++;
+                                reviewTokenCount++;
                             }
                         }
-                        review.length = tokenizer.countTokens();
+                        review.length = reviewTokenCount;
                         reviewsIndex.put(reviewId, review);
 
                         review = new ReviewData();
