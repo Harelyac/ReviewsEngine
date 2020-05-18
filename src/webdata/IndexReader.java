@@ -322,7 +322,7 @@ public class IndexReader {
                 return -1;
             }
         }
-        return curr_review.length - 1;
+        return curr_review.length;
     }
     /**
      * Return the number of reviews containing a given token (i.e., word)
