@@ -1,5 +1,7 @@
 package webdata;
 
+import org.junit.platform.commons.util.StringUtils;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -9,7 +11,7 @@ import java.util.*;
 
 public class SlowIndexWriter {
     private static final int BLOCK_SIZE = 4;
-
+    public int c = 0;
     private static final String WORDS_STRING_FILENAME = "words_lex_string.txt";
     private static final String WORDS_TABLE_FILENAME = "words_lex_table.ser";
     private static final String WORDS_POSTING_LISTS = "posting_lists_of_words.txt";
@@ -40,14 +42,13 @@ public class SlowIndexWriter {
         this.wordsLex = new Lexicon(BLOCK_SIZE);
     }
 
-    public void slowWrite(String inputFile, String dir)  {
+    public void slowWrite(String inputFile, String dir) {
         parseFile(dir + "//" + inputFile);
         writeIndexFiles(dir);
     }
 
 
-
-    private void writeIndexFiles(String dir)  {
+    private void writeIndexFiles(String dir) {
         // writing reviews data to disk
         reviewsIndex.write(dir);
 
@@ -71,52 +72,59 @@ public class SlowIndexWriter {
                     continue;
                 }
 
-                StringTokenizer tokenizer = new StringTokenizer(line, ":(),-'!\".<>+ $&@;");
+                StringTokenizer tokenizer = new StringTokenizer(line, ",.\n<>()\"'/;-=+*@#$%^&~`][!_:|\b\t?{} ");
                 String firstToken = tokenizer.nextToken();
                 String token;
                 int reviewTokenCount = 0;
 
                 switch (firstToken) {
-                    case "product/productId":
+                    case "product":
                         this.reviewId += 1;
+                        token = getProductIdToken(tokenizer);
                         token = getProductIdToken(tokenizer);
                         if (!token.isEmpty()) {
                             productIdIndex.updateIndex(token, reviewId);
                             review.productId = token;
                         }
                         break;
-                    case "review/score":
-                        token = tokenizer.nextToken();
-                        if (!token.isEmpty()) {
-                            int num = Integer.parseInt(token);
-                            int dec = Integer.parseInt(tokenizer.nextToken());
-                            review.score = num + (dec * 0.1);
-                        }
-                        break;
-                    case "review/helpfulness":
-                        token = tokenizer.nextToken();
-                        if (!token.isEmpty()) {
-                            review.helpfulnessNumerator = Integer.parseInt(token.split("/")[0]);
-                            review.helpfulnessDenominator = Integer.parseInt(token.split("/")[1]);
-                        }
-                        break;
-                    case "review/text":
-                        while (tokenizer.hasMoreTokens()) {
-                            token = getToken(tokenizer);
-                            if (!token.isEmpty()) {
-                                wordsIndex.updateIndex(token, reviewId);
-                                reviewsIndex.tokenCount++;
-                                reviewTokenCount++;
-                            }
-                        }
-                        review.length = reviewTokenCount;
-                        reviewsIndex.put(reviewId, review);
+                    case "review": {
+                        switch (tokenizer.nextToken()) {
+                            case "score":
+                                token = tokenizer.nextToken();
+                                if (!token.isEmpty()) {
+                                    int num = Integer.parseInt(token);
+                                    int dec = Integer.parseInt(tokenizer.nextToken());
+                                    review.score = num + (dec * 0.1);
+                                }
+                                break;
+                            case "helpfulness":
+                                token = tokenizer.nextToken();
+                                if (!token.isEmpty()) {
+                                    review.helpfulnessNumerator = Integer.parseInt(token);
+                                    tokenizer.nextToken();
+                                    review.helpfulnessDenominator = Integer.parseInt(token);
+                                }
+                                break;
+                            case "text":
+                                while (tokenizer.hasMoreTokens()) {
+                                    token = getToken(tokenizer);
+                                    if (!token.isEmpty()) {
+                                        wordsIndex.updateIndex(token, reviewId);
+                                        reviewsIndex.tokenCount++;
+                                        reviewTokenCount++;
+                                    }
+                                }
+                                review.length = reviewTokenCount;
+                                reviewsIndex.put(reviewId, review);
 
-                        review = new ReviewData();
-                        break;
-                    default:
-                        break;
+                                review = new ReviewData();
+                                break;
+                            default:
+                                break;
+                        }
+                    }
                 }
+
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -125,8 +133,18 @@ public class SlowIndexWriter {
 
     private String getToken(StringTokenizer tokenizer) {
         String token = tokenizer.nextToken().toLowerCase();
+        String last = token;
         // |([0-9]+)
-        token = token.replaceAll("[^a-zA-Z0-9]+", "");
+
+        token = token.replaceAll("[^\\w_]+", "");
+        if (last.contains("/")) {
+            System.out.print(last);
+            System.out.println(token);
+        }
+        if (!token.equals("")) {
+            c++;
+        }
+
         return token;
     }
 
@@ -142,8 +160,8 @@ public class SlowIndexWriter {
     public void removeIndex(String dir) {
         File folder = new File(dir);
 
-        for (File file : folder.listFiles()){
-            if (file.getName().endsWith(".txt") | file.getName().endsWith(".ser")){
+        for (File file : folder.listFiles()) {
+            if (file.getName().endsWith(".txt") | file.getName().endsWith(".ser")) {
                 file.delete();
             }
         }
