@@ -82,38 +82,41 @@ public class IndexReader {
         m = m - (m % BLOCK_SIZE);
 
         while (l <= r) {
-            block_ptr = table.get(m).get("term_ptr");
+            block_ptr = table.get(m).get("term_ptr") +1;
             next_index = lexStr.length();
-            String block = lexStr.substring(block_ptr + 1, next_index);
+            String block = lexStr.substring(block_ptr , next_index);
 
             String[] block_words = block.split("\\P{Alpha}+");
             String prefix = block_words[0];
-            int res = token.substring(0,prefix.length()).compareTo(prefix);
 
             // Check if x is present at mid
             if (res == 0 || prefix.equals("")) {
                 int i;
                 String term;
-                for (i = 1; i < 5; i++) {
+                if (token.equals(prefix) && block_words.length > 1 && block_words[1].equals("")) {
+                    return m;
+                }
+                for (i = 1; i < 5 && i < block_words.length; i++) {
                     term = prefix + block_words[i];
                     if (token.equals(term)) {
                         return i + m - 1;
                     }
                 }
-                if (prefix.equals(""))
+                if (prefix.equals("") && i < block_words.length)
                 {
                     res = token.compareTo(block_words[i]);
+                    if (res == 0){
+                        return i + m - 1;
+                    }
                 }
                 else {
                     return -1;
                 }
             }
-            // If x greater, ignore left half
             if (res > 0) {
                 l = m + BLOCK_SIZE;
             }
 
-                // If x is smaller, ignore right half
             else {
                 r = m - BLOCK_SIZE;
             }
@@ -347,7 +350,7 @@ public class IndexReader {
         if (getTokenFrequency(token) != 0){
             int sum = 0;
             // sum all the reviews freqs for a given token
-            for (int i = 1; i < curr_pl.size() - 2; i+=2){
+            for (int i = 1; i < curr_pl.size(); i+=2){
                 sum += curr_pl.get(i);
             }
 

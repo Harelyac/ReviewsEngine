@@ -23,45 +23,45 @@ public class InvertedIndex {
         int ptr = 0;
         byte[] encoded_reveiwsIds, encoded_freqs = new byte[0]; // FIXME - maybe this will cause future problems
 
+        try {
+            RandomAccessFile file = new RandomAccessFile(dir + "//" + file_path, "rw");
 
-        // first use posting list and update information into lexicon
-        for (Map.Entry<String, PostingList> entry : index.entrySet()) {
-            String token = entry.getKey();
-            PostingList pl = entry.getValue();
-            List<Integer> docList = pl.getDocIdsList();
+            // first use posting list and update information into lexicon
+            for (Map.Entry<String, PostingList> entry : index.entrySet()) {
 
-            Map<String, Integer> row = new HashMap<>();
-            row.put("length", token.length());
-            row.put("pl_reviewsIds_ptr", ptr); // saving beginning of reviews's IDs
+                String token = entry.getKey();
+                PostingList pl = entry.getValue();
+                List<Integer> docList = pl.getDocIdsList();
 
-            encoded_reveiwsIds = GroupVarint.encode(docList);
-            ptr += encoded_reveiwsIds.length;
+                Map<String, Integer> row = new HashMap<>();
+                row.put("length", token.length());
+                row.put("pl_reviewsIds_ptr", ptr); // saving beginning of reviews's IDs
 
-            if (file_path.equals("posting_lists_of_words.txt")) {
-                row.put("pl_reviewsFreqs_ptr", ptr); // saving beginning of reviews's frequencies
-                List<Integer> docFreqList = new ArrayList<>(pl.freqMap.values());
-                encoded_freqs = GroupVarint.encode(docFreqList);
-                ptr += encoded_freqs.length;
-            }
+                encoded_reveiwsIds = GroupVarint.encode(docList);
+                ptr += encoded_reveiwsIds.length;
+
+                if (file_path.equals("posting_lists_of_words.txt")) {
+                    row.put("pl_reviewsFreqs_ptr", ptr); // saving beginning of reviews's frequencies
+                    List<Integer> docFreqList = new ArrayList<>(pl.freqMap.values());
+                    encoded_freqs = GroupVarint.encode(docFreqList);
+                    ptr += encoded_freqs.length;
+                }
 
 
-            // Building lexicon table
-            lex.table.put(token, row);
+                // Building lexicon table
+                lex.table.put(token, row);
 
-            try {
-                RandomAccessFile file;
-                file = new RandomAccessFile(dir + "//" + file_path, "rw");
-                file.setLength(0);
+
                 file.write(encoded_reveiwsIds);
                 if (file_path.equals("posting_lists_of_words.txt")) {
                     file.write(encoded_freqs);
                 }
-                file.close();
-            } catch (IOException e) {
-                e.printStackTrace();
+
             }
-
-
+            file.close();
+        }
+        catch(IOException e){
+            e.printStackTrace();
         }
     }
 }

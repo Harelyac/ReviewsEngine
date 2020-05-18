@@ -36,8 +36,6 @@ public class Lexicon {
             // saving the location of the first term for each block
             int term_ptr = lexStr.length() - 1;
             table.get(term).put("term_ptr",term_ptr);
-            System.out.println(term + " ptr: " + (lexStr.length() -1));
-
             lexStr.append(prefix).append("*").append(suffix);
 
             for (i = 1; i < this.k && block.size() > i; i++) {
