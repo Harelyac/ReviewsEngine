@@ -82,12 +82,12 @@ public class IndexReader {
         int result = 0;
 
 
-        while (l <= r) {
+        while (l < r) {
             block_ptr = table.get(m).get("term_ptr") + 1;
 
             next_block_ptr = lexStr.length();
 
-            if (m < table.size() - 1) {
+            if (m < table.size() - 4) {
                 next_block_ptr = table.get(m + BLOCK_SIZE).get("term_ptr");
             }
 
@@ -107,7 +107,7 @@ public class IndexReader {
             if (result > 0) {
                 String term;
                 // check if the token start with the prefix of the block
-                if (token.substring(0, prefix.length()).equals(prefix)) {
+                if (token.substring(0, Math.min(prefix.length(), token.length())).equals(prefix)) {
                     // check first 4 words in block
                     for (int i = 1; i < 5; i++) {
                         term = prefix + block_words[i];
@@ -116,6 +116,7 @@ public class IndexReader {
                         }
                     }
                 }
+
                 // here we know for sure it's not in the current block
                 l = m + BLOCK_SIZE;
             }
@@ -132,7 +133,7 @@ public class IndexReader {
         return -1;
     }
 
-    public void readPostingList(String token, String filename){
+    public boolean readPostingList(String token, String filename){
         long indexIDs, indexFreqs, indexNextIDs;
         int index = binarySearch(token.toLowerCase());
 
@@ -196,7 +197,9 @@ public class IndexReader {
             {
                 e1.printStackTrace();
             }
+            return true;
         }
+        return false;
     }
 
     /**
@@ -331,7 +334,9 @@ public class IndexReader {
         }
 
         if (!token.equals(last_token)) {
-            readPostingList(token, WORDS_POSTING_LISTS);
+            if (!readPostingList(token, WORDS_POSTING_LISTS)){
+                return 0;
+            }
             last_token = token;
             last_productId = "";
         }

@@ -51,6 +51,7 @@ public class Lexicon {
             file.setLength(0);
             file.writeChars(lexStr.toString());
             file.close();
+
             // writing the full table into serialized file
             List<Map<String, Integer>> rows = new ArrayList<>(this.table.values());
             FileOutputStream fos = new FileOutputStream(dir + "//" + filename2);

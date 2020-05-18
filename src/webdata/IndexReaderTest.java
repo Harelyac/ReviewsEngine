@@ -124,7 +124,6 @@ class IndexReaderTest {
 				assertEquals(expectedOutputs[i], (int)func.apply(inputs[i]), String.format(msgInt, inputs[i]));
 			}
 		}
-
 	}
 
 	@Nested
