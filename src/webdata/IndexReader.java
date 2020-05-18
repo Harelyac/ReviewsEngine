@@ -434,28 +434,12 @@ public class IndexReader {
     public Enumeration<Integer> getProductReviews(String productId) {
         readLexicon(PRODUCTS_STRING_FILENAME, PRODUCTS_TABLE_FILENAME);
 
-        if (productId != last_productId) {
+        if (!productId.equals(last_productId)) {
             readPostingList(productId, PRODUCTS_POSTING_LISTS);
             last_productId = productId;
             last_token = "";
         }
-        if (curr_pl.isEmpty()){
-            return Collections.enumeration(curr_pl);
-        }
 
-        else
-        {
-            return new Enumeration<Integer>() {
-                @Override
-                public boolean hasMoreElements() {
-                    return false;
-                }
-
-                @Override
-                public Integer nextElement() {
-                    return null;
-                }
-            };
-        }
+        return Collections.enumeration(curr_pl);
     }
 }
