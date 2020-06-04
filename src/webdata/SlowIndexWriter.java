@@ -13,7 +13,6 @@ public class SlowIndexWriter {
     private static final String WORDS_STRING_FILENAME = "words_lex_string.txt";
     private static final String WORDS_TABLE_FILENAME = "words_lex_table.ser";
     private static final String WORDS_POSTING_LISTS = "posting_lists_of_words.txt";
-
     private static final String PRODUCTS_STRING_FILENAME = "products_lex_string.txt";
     private static final String PRODUCTS_TABLE_FILENAME = "products_lex_table.ser";
     private static final String PRODUCTS_POSTING_LISTS = "posting_lists_of_productsIds.txt";
@@ -131,7 +130,6 @@ public class SlowIndexWriter {
     private String getProductIdToken(StringTokenizer tokenizer) {
         return tokenizer.nextToken().toLowerCase();
     }
-
 
     /**
      * Delete all index files by removing the given directory

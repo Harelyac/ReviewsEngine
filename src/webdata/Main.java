@@ -13,9 +13,7 @@ public class Main {
         siw.slowWrite("100.txt", "src//webdata");
         IndexReader ir = new IndexReader("src//webdata");
 
-        System.out.println(ir.getTokenFrequency("a"));
-
-
+        System.out.println(ir.get("a"));
 
         //test();
     }
