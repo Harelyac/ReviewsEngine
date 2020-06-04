@@ -7,7 +7,7 @@ public class ReviewData implements Serializable {
     public int helpfulnessNumerator;
     public int helpfulnessDenominator;
     public double score;
-    public int length;
+    public int length; // number of terms in the review text
     String productId;
 
     public ReviewData() {

@@ -1,5 +1,7 @@
 package webdata;
 
+import org.w3c.dom.ls.LSOutput;
+
 import java.io.*;
 import java.util.*;
 
@@ -8,7 +10,6 @@ public class IndexReader {
     private static final String WORDS_TABLE_FILENAME = "words_lex_table.ser";
     private static final String WORDS_POSTING_LISTS = "posting_lists_of_words.txt";
 
-    // FIXME check that later
     private static final String PRODUCTS_STRING_FILENAME = "products_lex_string.txt";
     private static final String PRODUCTS_TABLE_FILENAME = "products_lex_table.ser";
     private static final String PRODUCTS_POSTING_LISTS = "posting_lists_of_productsIds.txt";
@@ -21,9 +22,14 @@ public class IndexReader {
     int last_review_id;
     int number_of_reviews;
     int tokenCount;
+    int totalFreqs;
 
-    List<Map<String, Integer>> table;
-    String lexStr;
+    List<Map<String, Integer>> words_lex_table;
+    String words_lex_string;
+
+    List<Map<String, Integer>> products_lex_table;
+    String products_lex_string;
+
     List<Integer> curr_pl; // load posting lists and frequencies
 
     // here if we load pl of token we will update last token and reset product id to "" and the other way around
@@ -39,31 +45,20 @@ public class IndexReader {
         last_review_id = 0;
         number_of_reviews = 0;
 
-        table = new ArrayList<>();
-        lexStr = "";
+        words_lex_table = new ArrayList<>();
+        words_lex_string = "";
+        readLexicon(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
+
+        products_lex_table = new ArrayList<>();
+        products_lex_string = "";
+        readLexicon(PRODUCTS_STRING_FILENAME, PRODUCTS_TABLE_FILENAME);
+
         curr_pl = new ArrayList<>();
+
         last_token = "";
         last_productId = "";
-
-        init();
     }
-    private void init(){
-        RandomAccessFile file = null;
-        try {
-            file = new RandomAccessFile(directory + "//" + REVIEWS_DATA, "rw");
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
 
-        // get number of reviews
-        if (number_of_reviews == 0) {
-            try {
-                number_of_reviews = (int) (file.length() / 26);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
 
 
     /**
@@ -71,155 +66,89 @@ public class IndexReader {
      * @param token
      * @return if token not found returns -1
      */
-//    public int binarySearch(String token){
-//        String prefix;
-//        String temp, head_word, block;
-//        String [] block_words;
-//        int index, next_index;
-//        int BLOCK_SIZE = 4;
-//        int right = table.size()-1, left = 0;
-//        System.out.println(lexStr);
-//        // getting into middle index that dividable by zero, the idea is moving only on head of each block
-//        int middle = ((right + left) / 2);
-//        middle = middle - middle % BLOCK_SIZE;
-//
-//
-//        while (right > left)
-//        {
-//            index = table.get(middle).get("term_ptr");
-//            next_index = lexStr.length();
-//            System.out.println(next_index);
-//            if (middle <= table.size() - BLOCK_SIZE){
-//                next_index = table.get(middle + 4).get("term_ptr");
-//            }
-//            block = lexStr.substring(index + 1, next_index);
-//            System.out.println("block = "+block);
-//            block_words = block.split("\\P{Alpha}+");
-//
-//
-//            for (String w :
-//                    block_words) {
-//                System.out.println("block word: " + w);
-//            }
-//
-//            if (block_words.length > 1){
-//                prefix = block_words[0];
-//                head_word =  prefix + block_words[1];
-//                if (token.compareTo(prefix) == 0)
-//                {
-//                    for (int i = 0; i < block_words.length; i++) {
-//                        String term = prefix + block_words[i];
-//                        System.out.println("term");
-//                        System.out.println(term);
-//                        if (token.equals(term)){
-//                            return middle;
-//                        }
-//                    }
-//                }
-//                else if (token.compareTo(prefix) > 0)
-//                {
-//                    System.out.println("token = " + token + ", left = " + left + ", right = " + right + ", middle = " + middle);
-//                    if (left < middle) {
-//                        left = middle;
-//                    }
-//                    else
-//                        {
-//                        left+=4;
-//                    }
-//                }
-//                else if (token.compareTo(prefix) < 0)
-//                {
-//                    right = middle;
-//                }
-//
-//            }
-//
-//            // we are not on correct block
-//            middle = ((right + left) / 2) + (4 - (((right + left) / 2) % 4));
-//            System.out.println("token = " + token + ", left = " + left + ", right = " + right + ", middle = " + middle);
-//        }
-//        return -1;
-//    }
-
-    public int binarySearch(String token)
-    {
-        int block_ptr, next_index;
+    public int binarySearch(String lexStr, List<Map<String, Integer>> lexTable, String token) {
+        int block_ptr, next_block_ptr;
         int BLOCK_SIZE = 4;
-        int l = 0, r = table.size() - 1;
-        int m = l + (r - l) / 2;
+        int l = 0, r = lexTable.size() - 1;
+        int m = (r + l) / 2 ;
         m = m - (m % BLOCK_SIZE);
-        System.out.println(lexStr);
-        while (l <= r) {
-            block_ptr = table.get(m).get("term_ptr");
-            next_index = lexStr.length();
-            String block = lexStr.substring(block_ptr + 1, next_index);
-            System.out.println(block);
+        int result = 0;
 
-            String[] block_words = block.split("\\P{Alpha}+");
+
+        while (l < r) {
+            block_ptr = lexTable.get(m).get("term_ptr") + 1;
+
+            next_block_ptr = lexStr.length();
+
+            if (m < lexTable.size() - 4) {
+                next_block_ptr = lexTable.get(m + BLOCK_SIZE).get("term_ptr");
+            }
+
+            String block = lexStr.substring(block_ptr, next_block_ptr);
+
+            String[] block_words = block.split("([@]+)|([*]+)|([|]+)");
+
             String prefix = block_words[0];
 
-            System.out.println("token = " + token + ", left = " + l + ", right = " + r + ", middle = " + m);
-            int res = token.compareTo(prefix);
 
-            // Check if x is present at mid
-            if (res == 0 || prefix.equals("")) {
-                int i;
+            // check if we are lucky and the first word of block is the exact token
+            result = token.compareTo(prefix + block_words[1]);
+            if (result == 0) {
+                return m;
+            }
+
+            // if token is higher alphabetically
+            if (result > 0) {
                 String term;
-                for (i = 1; i < 5; i++) {
-                    term = prefix + block_words[i];
-                    if (token.equals(term)) {
-                        return i + m - 1;
+                // check if the token start with the prefix of the block
+                if (token.substring(0, Math.min(prefix.length(), token.length())).equals(prefix)) {
+                    // check first 4 words in block
+                    for (int i = 1; i < 5 && i < block_words.length; i++) {
+                        term = prefix + block_words[i];
+                        if (token.equals(term)) {
+                            return i + m - 1;
+                        }
                     }
                 }
-                if (prefix.equals(""))
-                {
-                    res = token.compareTo(block_words[i]);
-                }
-                else {
-                    return -1;
-                }
-            }
-            // If x greater, ignore left half
-            if (res > 0) {
+
+                // here we know for sure it's not in the current block
                 l = m + BLOCK_SIZE;
             }
 
-                // If x is smaller, ignore right half
+            // if token is lower alphabetically
             else {
-                r = m - BLOCK_SIZE;
+                r = m;
             }
-            int new_m = (l + (r - l) / 2);
-            new_m = new_m - (new_m % BLOCK_SIZE);
-            if (new_m == m)
-            {
-                return - 1;
-            }
-            else{
-                 m = new_m;
-            }
+
+            m = (r + l) / 2;
+            m = m - (m % BLOCK_SIZE);
         }
 
         return -1;
     }
 
 
-
-    public void readPostingList(String token, String filename){
+    // refactor later on do it more methodology FIXME
+    public boolean readPostingList(String lexStr, List<Map<String, Integer>> lexTable ,String token, String filename){
         long indexIDs, indexFreqs, indexNextIDs;
-        int index = binarySearch(token.toLowerCase());
+        int index = binarySearch(lexStr ,lexTable ,token.toLowerCase());
 
         if (index != -1)
         {
-            indexIDs = table.get(index).get("pl_reviewsIds_ptr");
 
+            indexIDs = lexTable.get(index).get("pl_reviewsIds_ptr");
+
+            // check if index does not reach end of table
             indexNextIDs = 0;
-            if (index < table.size()){
-                indexNextIDs = table.get(index + 1).get("pl_reviewsIds_ptr");
+            if (index < lexTable.size()-1){
+                indexNextIDs = lexTable.get(index + 1).get("pl_reviewsIds_ptr");
             }
 
+            // check if we have freqs at all
             indexFreqs = 0;
             if (filename.equals(WORDS_POSTING_LISTS)){
-                indexFreqs = table.get(index).get("pl_reviewsFreqs_ptr");
+                indexFreqs = lexTable.get(index).get("pl_reviewsFreqs_ptr");
+                totalFreqs = lexTable.get(index).get("total_freqs");
             }
 
 
@@ -228,14 +157,13 @@ public class IndexReader {
                 RandomAccessFile file = new RandomAccessFile(directory + "//" + filename, "rw");
                 file.seek(indexIDs);
                 if (indexFreqs == 0){
-                    indexFreqs = file.length();
+                    indexFreqs = indexNextIDs;
                 }
                 byte [] reviewIdsBytes = new byte[(int)(indexFreqs - indexIDs)];
                 file.read(reviewIdsBytes);
 
                 List<Integer> reviewIds = new ArrayList<>();
                 reviewIds = GroupVarint.decode(reviewIdsBytes);
-                //System.out.println(reviewIds);
 
                 List<Integer> reviewFreqs = new ArrayList<>();
                 if (filename.equals(WORDS_POSTING_LISTS)){
@@ -248,10 +176,9 @@ public class IndexReader {
                     file.read(reviewFreqsBytes);
 
                     reviewFreqs = GroupVarint.decode(reviewFreqsBytes);
-                    //System.out.println(reviewFreqs);
                 }
 
-
+                curr_pl.clear();
                 int curr_sum = 0;
                 // initialize posting list with values being read
                 for (int i = 0; i < reviewIds.size(); i++)
@@ -268,7 +195,9 @@ public class IndexReader {
             {
                 e1.printStackTrace();
             }
+            return true;
         }
+        return false;
     }
 
     /**
@@ -276,14 +205,17 @@ public class IndexReader {
      *
      * */
     public boolean readLexicon(String lexStrFile, String lextableFile){
+        String lexStr = "";
+        List<Map<String, Integer>> lexTable = new ArrayList<>(); ;
 
         try
         {
             RandomAccessFile br = new RandomAccessFile(directory + "//" + lexStrFile, "r");
-            lexStr = br.readLine().replaceAll("[^\\p{Graph}\r\t\n ]", "");;
+            lexStr = br.readLine().replaceAll("[^\\p{Graph}\r\t\n ]", "");
             FileInputStream fileIn = new FileInputStream(directory + "//" + lextableFile);
             ObjectInputStream objectIn = new ObjectInputStream(fileIn);
-            table = (List<Map<String, Integer>>) objectIn.readObject();
+            lexTable = (List<Map<String, Integer>>) objectIn.readObject();
+            objectIn.close();
             br.close();
         }
         catch (Exception e1)
@@ -291,6 +223,14 @@ public class IndexReader {
             e1.printStackTrace();
         }
 
+        if (lexStrFile.equals(WORDS_STRING_FILENAME)){
+            this.words_lex_string = lexStr;
+            this.words_lex_table = lexTable;
+        }
+        else{
+            this.products_lex_string = lexStr;
+            this.products_lex_table = lexTable;
+        }
         return true;
     }
 
@@ -306,22 +246,22 @@ public class IndexReader {
         {
             RandomAccessFile file = new RandomAccessFile(directory + "//" + REVIEWS_DATA, "rw");
 
+            number_of_reviews = (int)(file.length() / 31);
+
             // check review id range validity
-            if (reviewId < 0 || reviewId > number_of_reviews)
+            if (reviewId <= 0 || reviewId > number_of_reviews)
             {
                 return false;
             }
 
-            file.seek((reviewId - 1) * 26);
+            file.seek((reviewId - 1) * 31);
 
-            byte [] bytes = new byte[26];
+            byte [] bytes = new byte[31];
             file.read(bytes);
             String data = new String(bytes);
             curr_review.initialize(data.split("\t")[0].split(","));
             last_review_id = reviewId;
 
-            // get number of reviews
-            number_of_reviews = (int) (file.length() / 26);
         }
 
         catch (IOException e1)
@@ -337,12 +277,12 @@ public class IndexReader {
      * Returns null if there is no review with the given identifier
      */
     public String getProductId(int reviewId){
-        if (reviewId != last_review_id){
+        if (reviewId != last_review_id | reviewId == 0){
             if(!readReview(reviewId)){
                 return null;
             }
         }
-        return curr_review.productId;
+        return curr_review.productId.toUpperCase();
 
     };
     /**
@@ -350,7 +290,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewScore(int reviewId) {
-        if (reviewId != last_review_id){
+        if (reviewId != last_review_id | reviewId == 0){
             if(!readReview(reviewId)){
                 return -1;
             }
@@ -362,7 +302,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewHelpfulnessNumerator(int reviewId) {
-        if (reviewId != last_review_id){
+        if (reviewId != last_review_id | reviewId == 0){
             if(!readReview(reviewId)){
                 return -1;
             }
@@ -374,7 +314,7 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewHelpfulnessDenominator(int reviewId) {
-        if (reviewId != last_review_id){
+        if (reviewId != last_review_id | reviewId == 0){
             if(!readReview(reviewId)){
                 return -1;
             }
@@ -386,28 +326,25 @@ public class IndexReader {
      * Returns -1 if there is no review with the given identifier
      */
     public int getReviewLength(int reviewId) {
-        if (reviewId != last_review_id){
+        if (reviewId != last_review_id | reviewId == 0){
             if(!readReview(reviewId)){
                 return -1;
             }
         }
         return curr_review.length;
     }
+
     /**
      * Return the number of reviews containing a given token (i.e., word)
      * Returns 0 if there are no reviews containing this token
      */
     public int getTokenFrequency(String token) {
-        if (table.isEmpty() | lexStr == null | last_token.equals("")){
-            readLexicon(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
-        }
-
         if (!token.equals(last_token)) {
-            readPostingList(token, WORDS_POSTING_LISTS);
+            if (!readPostingList(words_lex_string, words_lex_table, token, WORDS_POSTING_LISTS)){
+                return 0;
+            }
             last_token = token;
-            last_productId = "";
         }
-
         return curr_pl.size() / 2;
     }
 
@@ -418,13 +355,7 @@ public class IndexReader {
      */
     public int getTokenCollectionFrequency(String token) {
         if (getTokenFrequency(token) != 0){
-            int sum = 0;
-            // sum all the reviews freqs for a given token
-            for (int i = 1; i < curr_pl.size() - 2; i+=2){
-                sum += curr_pl.get(i);
-            }
-
-            return sum;
+            return totalFreqs;
         }
 
         return 0;
@@ -456,9 +387,9 @@ public class IndexReader {
             }
         };
 
-     }
+    }
 
-     /**
+    /**
      * Return the number of product reviews available in the system
      */
     public int getNumberOfReviews() {
@@ -481,7 +412,7 @@ public class IndexReader {
         try
         {
             RandomAccessFile file = new RandomAccessFile(directory + "//" + REVIEWS_DATA, "rw");
-            file.seek(number_of_reviews * 26);
+            file.seek(number_of_reviews * 31);
             tokenCount = file.readInt();
         }
         catch (Exception e)
@@ -499,32 +430,11 @@ public class IndexReader {
      * Returns an empty Enumeration if there are no reviews for this product
      */
     public Enumeration<Integer> getProductReviews(String productId) {
-        if (table.isEmpty() | lexStr == null | last_productId.equals("")){
-            readLexicon(PRODUCTS_STRING_FILENAME, PRODUCTS_TABLE_FILENAME);
-        }
-
-        if (productId != last_productId) {
-            readPostingList(productId, PRODUCTS_POSTING_LISTS);
+        if (!productId.equals(last_productId)) {
+            readPostingList(products_lex_string, products_lex_table, productId, PRODUCTS_POSTING_LISTS);
             last_productId = productId;
-            last_token = "";
-        }
-        if (curr_pl.isEmpty()){
-            return Collections.enumeration(curr_pl);
         }
 
-        else
-        {
-            return new Enumeration<Integer>() {
-                @Override
-                public boolean hasMoreElements() {
-                    return false;
-                }
-
-                @Override
-                public Integer nextElement() {
-                    return null;
-                }
-            };
-        }
+        return Collections.enumeration(curr_pl);
     }
 }

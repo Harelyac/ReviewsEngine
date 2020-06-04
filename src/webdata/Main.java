@@ -10,10 +10,10 @@ public class Main {
     public static void main(String[] args) throws IOException {
 
         SlowIndexWriter siw = new SlowIndexWriter();
-        siw.slowWrite("100.txt", "src//webdata");
-        IndexReader ir = new IndexReader("src//webdata");
+        siw.slowWrite("src\\webdata\\1000.txt", "src\\files");
+        IndexReader ir = new IndexReader("src\\files");
 
-        System.out.println(ir.get("a"));
+        System.out.println(ir.getProductReviews("B006K2ZZ7K"));
 
         //test();
     }
