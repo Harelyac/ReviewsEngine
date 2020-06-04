@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class IndexReaderTest {
 	final static String dir = "C:\\Users\\harelyac\\OneDrive\\Desktop\\InfoRetrieval\\ReviewsEngine\\src\\webdata";
 	final static String indexDir = dir;
-	final static String inputFile = "1000.txt";
+	final static String inputFile = "src\\webdata\\Books.txt";
 	static private IndexReader indexReader;
 	static private SlowIndexWriter indexWriter;
 	private final String msgInt = "fail on input: %d";

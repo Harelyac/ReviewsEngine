@@ -15,19 +15,19 @@ public class Lexicon {
     }
 
 
-    // create one big encoded string out of all the terms in table keys
-    public void write(String filename1, String filename2, String dir) {
+    // create one big encoded string out of all the terms in table keys, then write it straight to a file
+    public void write(String filename1, String filename2, String dir, int chunk_number) {
 
         List<List<String>> blocks = convertMapToBlocks();
         String prefix, suffix , term;
-        int length, gapSize;
+        //int length, gapSize;
 
         for (List<String> block: blocks) {
             int i = 0;
             term = block.get(i);
 
 
-            length = table.get(term).get("length");
+            //length = table.get(term).get("length");
             prefix = getBlockCommonPrefix(block);
             suffix = getSuffix(term, prefix);
 
@@ -35,26 +35,26 @@ public class Lexicon {
 
             // saving the location of the first term for each block
             int term_ptr = lexStr.length() - 1;
-            table.get(term).put("term_ptr",term_ptr);
+            table.get(term).put("term_ptr", term_ptr);
             lexStr.append(prefix).append("*").append(suffix);
 
             for (i = 1; i < this.k && block.size() > i; i++) {
                 term = block.get(i);
                 suffix = getSuffix(term, prefix);
-                gapSize = term.length() - prefix.length();
+                //gapSize = term.length() - prefix.length();
                 lexStr.append("@").append(suffix);
             }
         }
 
         try{
-            RandomAccessFile file = new RandomAccessFile(dir + "//" + filename1, "rw");
+            RandomAccessFile file = new RandomAccessFile(dir + "//" + filename1 + "_" + Integer.toString(chunk_number) + ".txt", "rw");
             file.setLength(0);
             file.writeChars(lexStr.toString());
             file.close();
 
             // writing the full table into serialized file
             List<Map<String, Integer>> rows = new ArrayList<>(this.table.values());
-            FileOutputStream fos = new FileOutputStream(dir + "//" + filename2);
+            FileOutputStream fos = new FileOutputStream(dir + "//" + filename2 + "_" + Integer.toString(chunk_number) + ".ser");
             ObjectOutputStream oos = new ObjectOutputStream(fos);
             oos.writeObject(rows);
             oos.close();

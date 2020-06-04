@@ -10,7 +10,6 @@ public class IndexReader {
     private static final String WORDS_TABLE_FILENAME = "words_lex_table.ser";
     private static final String WORDS_POSTING_LISTS = "posting_lists_of_words.txt";
 
-    // FIXME check that later
     private static final String PRODUCTS_STRING_FILENAME = "products_lex_string.txt";
     private static final String PRODUCTS_TABLE_FILENAME = "products_lex_table.ser";
     private static final String PRODUCTS_POSTING_LISTS = "posting_lists_of_productsIds.txt";
@@ -23,9 +22,14 @@ public class IndexReader {
     int last_review_id;
     int number_of_reviews;
     int tokenCount;
+    int totalFreqs;
 
-    List<Map<String, Integer>> table;
-    String lexStr;
+    List<Map<String, Integer>> words_lex_table;
+    String words_lex_string;
+
+    List<Map<String, Integer>> products_lex_table;
+    String products_lex_string;
+
     List<Integer> curr_pl; // load posting lists and frequencies
 
     // here if we load pl of token we will update last token and reset product id to "" and the other way around
@@ -41,31 +45,20 @@ public class IndexReader {
         last_review_id = 0;
         number_of_reviews = 0;
 
-        table = new ArrayList<>();
-        lexStr = "";
+        words_lex_table = new ArrayList<>();
+        words_lex_string = "";
+        readLexicon(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
+
+        products_lex_table = new ArrayList<>();
+        products_lex_string = "";
+        readLexicon(PRODUCTS_STRING_FILENAME, PRODUCTS_TABLE_FILENAME);
+
         curr_pl = new ArrayList<>();
+
         last_token = "";
         last_productId = "";
-
-        init();
     }
-    private void init(){
-        RandomAccessFile file = null;
-        try {
-            file = new RandomAccessFile(directory + "//" + REVIEWS_DATA, "rw");
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
 
-        // get number of reviews
-        if (number_of_reviews == 0) {
-            try {
-                number_of_reviews = (int) (file.length() / 26);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
 
 
     /**
@@ -73,22 +66,22 @@ public class IndexReader {
      * @param token
      * @return if token not found returns -1
      */
-    public int binarySearch(String token) {
+    public int binarySearch(String lexStr, List<Map<String, Integer>> lexTable, String token) {
         int block_ptr, next_block_ptr;
         int BLOCK_SIZE = 4;
-        int l = 0, r = table.size() - 1;
+        int l = 0, r = lexTable.size() - 1;
         int m = (r + l) / 2 ;
         m = m - (m % BLOCK_SIZE);
         int result = 0;
 
 
         while (l < r) {
-            block_ptr = table.get(m).get("term_ptr") + 1;
+            block_ptr = lexTable.get(m).get("term_ptr") + 1;
 
             next_block_ptr = lexStr.length();
 
-            if (m < table.size() - 4) {
-                next_block_ptr = table.get(m + BLOCK_SIZE).get("term_ptr");
+            if (m < lexTable.size() - 4) {
+                next_block_ptr = lexTable.get(m + BLOCK_SIZE).get("term_ptr");
             }
 
             String block = lexStr.substring(block_ptr, next_block_ptr);
@@ -134,24 +127,28 @@ public class IndexReader {
         return -1;
     }
 
-    public boolean readPostingList(String token, String filename){
+
+    // refactor later on do it more methodology FIXME
+    public boolean readPostingList(String lexStr, List<Map<String, Integer>> lexTable ,String token, String filename){
         long indexIDs, indexFreqs, indexNextIDs;
-        int index = binarySearch(token.toLowerCase());
+        int index = binarySearch(lexStr ,lexTable ,token.toLowerCase());
 
         if (index != -1)
         {
-            indexIDs = table.get(index).get("pl_reviewsIds_ptr");
+
+            indexIDs = lexTable.get(index).get("pl_reviewsIds_ptr");
 
             // check if index does not reach end of table
             indexNextIDs = 0;
-            if (index < table.size()-1){
-                indexNextIDs = table.get(index + 1).get("pl_reviewsIds_ptr");
+            if (index < lexTable.size()-1){
+                indexNextIDs = lexTable.get(index + 1).get("pl_reviewsIds_ptr");
             }
 
             // check if we have freqs at all
             indexFreqs = 0;
             if (filename.equals(WORDS_POSTING_LISTS)){
-                indexFreqs = table.get(index).get("pl_reviewsFreqs_ptr");
+                indexFreqs = lexTable.get(index).get("pl_reviewsFreqs_ptr");
+                totalFreqs = lexTable.get(index).get("total_freqs");
             }
 
 
@@ -208,6 +205,8 @@ public class IndexReader {
      *
      * */
     public boolean readLexicon(String lexStrFile, String lextableFile){
+        String lexStr = "";
+        List<Map<String, Integer>> lexTable = new ArrayList<>(); ;
 
         try
         {
@@ -215,7 +214,8 @@ public class IndexReader {
             lexStr = br.readLine().replaceAll("[^\\p{Graph}\r\t\n ]", "");
             FileInputStream fileIn = new FileInputStream(directory + "//" + lextableFile);
             ObjectInputStream objectIn = new ObjectInputStream(fileIn);
-            table = (List<Map<String, Integer>>) objectIn.readObject();
+            lexTable = (List<Map<String, Integer>>) objectIn.readObject();
+            objectIn.close();
             br.close();
         }
         catch (Exception e1)
@@ -223,6 +223,14 @@ public class IndexReader {
             e1.printStackTrace();
         }
 
+        if (lexStrFile.equals(WORDS_STRING_FILENAME)){
+            this.words_lex_string = lexStr;
+            this.words_lex_table = lexTable;
+        }
+        else{
+            this.products_lex_string = lexStr;
+            this.products_lex_table = lexTable;
+        }
         return true;
     }
 
@@ -238,22 +246,22 @@ public class IndexReader {
         {
             RandomAccessFile file = new RandomAccessFile(directory + "//" + REVIEWS_DATA, "rw");
 
+            number_of_reviews = (int)(file.length() / 31);
+
             // check review id range validity
             if (reviewId <= 0 || reviewId > number_of_reviews)
             {
                 return false;
             }
 
-            file.seek((reviewId - 1) * 26);
+            file.seek((reviewId - 1) * 31);
 
-            byte [] bytes = new byte[26];
+            byte [] bytes = new byte[31];
             file.read(bytes);
             String data = new String(bytes);
             curr_review.initialize(data.split("\t")[0].split(","));
             last_review_id = reviewId;
 
-            // get number of reviews
-            number_of_reviews = (int) (file.length() / 26);
         }
 
         catch (IOException e1)
@@ -331,16 +339,12 @@ public class IndexReader {
      * Returns 0 if there are no reviews containing this token
      */
     public int getTokenFrequency(String token) {
-        readLexicon(WORDS_STRING_FILENAME, WORDS_TABLE_FILENAME);
-
         if (!token.equals(last_token)) {
-            if (!readPostingList(token, WORDS_POSTING_LISTS)){
+            if (!readPostingList(words_lex_string, words_lex_table, token, WORDS_POSTING_LISTS)){
                 return 0;
             }
             last_token = token;
-            last_productId = "";
         }
-
         return curr_pl.size() / 2;
     }
 
@@ -351,12 +355,7 @@ public class IndexReader {
      */
     public int getTokenCollectionFrequency(String token) {
         if (getTokenFrequency(token) != 0){
-            int sum = 0;
-            // sum all the reviews freqs for a given token
-            for (int i = 1; i < curr_pl.size(); i+=2){
-                sum += curr_pl.get(i);
-            }
-            return sum;
+            return totalFreqs;
         }
 
         return 0;
@@ -373,7 +372,6 @@ public class IndexReader {
 
     public Enumeration<Integer> getReviewsWithToken(String token) {
         if (getTokenFrequency(token) != 0){
-            System.out.println(curr_pl);
             return Collections.enumeration(curr_pl);
         }
 
@@ -414,7 +412,7 @@ public class IndexReader {
         try
         {
             RandomAccessFile file = new RandomAccessFile(directory + "//" + REVIEWS_DATA, "rw");
-            file.seek(number_of_reviews * 26);
+            file.seek(number_of_reviews * 31);
             tokenCount = file.readInt();
         }
         catch (Exception e)
@@ -432,12 +430,9 @@ public class IndexReader {
      * Returns an empty Enumeration if there are no reviews for this product
      */
     public Enumeration<Integer> getProductReviews(String productId) {
-        readLexicon(PRODUCTS_STRING_FILENAME, PRODUCTS_TABLE_FILENAME);
-
         if (!productId.equals(last_productId)) {
-            readPostingList(productId, PRODUCTS_POSTING_LISTS);
+            readPostingList(products_lex_string, products_lex_table, productId, PRODUCTS_POSTING_LISTS);
             last_productId = productId;
-            last_token = "";
         }
 
         return Collections.enumeration(curr_pl);

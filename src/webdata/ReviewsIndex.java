@@ -9,7 +9,7 @@ import java.util.TreeMap;
 
 
 public class ReviewsIndex {
-    private static final String REVIEWS_DATA = "reviews_data.txt";
+    private static final String REVIEWS_DATA = "reviews_data";
     public int tokenCount;
 
     SortedMap<Integer, ReviewData> index;
@@ -24,15 +24,15 @@ public class ReviewsIndex {
     }
 
     // use encode to write object files to disk mimic the writeobject method
-    public void write(String dir) {
+    public void write(String dir, int chunk_number) {
 
         try {
+            RandomAccessFile file = new RandomAccessFile(dir + "//" + REVIEWS_DATA + "_" + Integer.toString(chunk_number) + ".txt", "rw");
 
-            RandomAccessFile file = new RandomAccessFile(dir + "//" + REVIEWS_DATA, "rw");
             file.setLength(0);
 
             for (ReviewData rd : index.values()) {
-                byte[] Bytes = (rd.toString() + "\t".repeat(25 - rd.toString().getBytes().length) + "\n").getBytes();
+                byte[] Bytes = (rd.toString() + "\t".repeat(30 - rd.toString().getBytes().length) + "\n").getBytes();
                 file.write(Bytes);
             }
 

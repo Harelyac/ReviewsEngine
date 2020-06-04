@@ -109,15 +109,6 @@ public class GroupVarint {
         return (nBits / 8);
 
     }
-//    public static int toInt( byte[] bytes ) {
-//        System.out.println("toint");
-//        int result = 0;
-//        for (byte b : bytes) {
-//            result = (result << 8) | b;
-//            System.out.println(result);
-//        }
-//        return (int) (result & 0xFFFFFFFFL);
-//    }
 
     public static int toInt( byte[] bytes ) {
         int res = 0;
