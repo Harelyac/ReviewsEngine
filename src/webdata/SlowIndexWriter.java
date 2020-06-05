@@ -297,23 +297,33 @@ public class SlowIndexWriter {
         String prefix1;
         String prefix2;
 
+        int block_size1 = 4;
+        int block_size2 = 4;
+
         // run on both tables untill we reach last block
-        while (ptr1 != (size1 - remainder1) || ptr2 != (size2 - remainder2)){
+        while (ptr1 != size1 || ptr2 != size2){
             // check
-            if (index1 == 5){
-                ptr1 +=4;
+            if (index1 == block_size1 + 1){ // the +1 is just because on block we have prefix and suffixes to extra for prefix
+                // check if we are going to be on the last block
+                if (ptr1 + 4 == size1 - remainder1){
+                    block_size1 = remainder1;
+                }
+                ptr1 += 4;
                 int startBlock1 = wordsTypeTables.get(0).get(ptr1).get("term_ptr") + 1; // we always move 1 somthing related to long string - FIXME LATER
-                int startNextBlcok1 = wordsTypeTables.get(0).get(ptr1 + 4).get("term_ptr") + 1;
+                int startNextBlcok1 = wordsTypeTables.get(0).get(ptr1 + block_size1).get("term_ptr") + 1;
                 String block1 = wordsTypeStrings.get(0).substring(startBlock1, startNextBlcok1);
                 block_words1 = block1.split("([@]+)|([*]+)|([|]+)");
                 prefix1 = block_words1[0];
                 index1 = 0;
             }
 
-            if (index2 == 5) {
+            if (index2 == block_size2 + 1) {
+                if (ptr2 + 4 == size2 - remainder2){
+                    block_size2 = remainder2;
+                }
                 ptr2 +=4;
                 int startBlock2 = wordsTypeTables.get(1).get(ptr2).get("term_ptr") + 1;
-                int startNextBlcok2 = wordsTypeTables.get(1).get(ptr2 + 4).get("term_ptr") + 1;
+                int startNextBlcok2 = wordsTypeTables.get(1).get(ptr2 + block_size2).get("term_ptr") + 1;
                 String block2 = wordsTypeStrings.get(1).substring(startBlock2, startNextBlcok2);
                 block_words2 = block2.split("([@]+)|([*]+)|([|]+)");
                 prefix2 = block_words2[0];
@@ -492,21 +502,15 @@ public class SlowIndexWriter {
             outputBlocks.add(outputBlock);
         }
 
-        if (ptr1 == (size1 - remainder1)){
-            String block1 = wordsTypeStrings.get(0).substring(ptr1, wordsTypeStrings.get(0).length());
-            block_words1 = block1.split("([@]+)|([*]+)|([|]+)");
-            prefix1 = block_words1[0];
-            index1 = 0;
+        if (ptr1 == size1){
+            // this means here we just load words table 2 - for that maybe create a function for what we do inside while then we can call it from here with no duplicate
         }
 
-        if (ptr2 == (size2 - remainder2)){
-            String block1 = wordsTypeStrings.get(0).substring(ptr2, wordsTypeStrings.get(1).length());
-            block_words1 = block1.split("([@]+)|([*]+)|([|]+)");
-            prefix1 = block_words1[1];
-            index2 = 0;
+        if (ptr2 == size2){
+            // and here from table 1
         }
 
-        // now we need to continue the merge until we finish one string
+
         // now we encode the output strings -> block of block
         // and now we need to add the term ptr of each head of block on the output table
     }
