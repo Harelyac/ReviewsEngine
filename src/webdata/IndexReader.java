@@ -140,7 +140,7 @@ public class IndexReader {
 
             // check if index does not reach end of table
             indexNextIDs = 0;
-            if (index < lexTable.size()-1){
+            if (index < lexTable.size()- 1){
                 indexNextIDs = lexTable.get(index + 1).get("pl_reviewsIds_ptr");
             }
 

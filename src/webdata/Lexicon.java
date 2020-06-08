@@ -80,7 +80,7 @@ public class Lexicon {
         return blocks;
     }
 
-    private String getSuffix(String term, String prefix) {
+    public static String getSuffix(String term, String prefix) {
         String suffix;
         if (term.length() > prefix.length()){
             suffix = term.substring(prefix.length());
@@ -92,7 +92,7 @@ public class Lexicon {
         return suffix;
     }
 
-    private static String getBlockCommonPrefix(List<String> block) {
+    public static String getBlockCommonPrefix(List<String> block) {
         String prefix = block.get(0);
 
         for (int i = 1; i < 4 && block.size() > i; i++) {
