@@ -3,6 +3,10 @@ package webdata;
 import org.w3c.dom.ls.LSOutput;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class IndexReader {
@@ -12,7 +16,7 @@ public class IndexReader {
 
     private static final String PRODUCTS_STRING_FILENAME = "products_lex_string.txt";
     private static final String PRODUCTS_TABLE_FILENAME = "products_lex_table.ser";
-    private static final String PRODUCTS_POSTING_LISTS = "posting_lists_of_productsIds.txt";
+    private static final String PRODUCTS_POSTING_LISTS = "posting_lists_of_products.txt";
 
     private static final String REVIEWS_DATA = "reviews_data.txt";
 
@@ -244,15 +248,17 @@ public class IndexReader {
 
         try
         {
-            RandomAccessFile file = new RandomAccessFile(directory + "//" + REVIEWS_DATA, "rw");
-
-            number_of_reviews = (int)(file.length() / 31);
+            Path path = Paths.get(directory + "//" + REVIEWS_DATA);
+            long lineCount = Files.lines(path, StandardCharsets.ISO_8859_1).count();
+            number_of_reviews = (int)lineCount - 1;
 
             // check review id range validity
             if (reviewId <= 0 || reviewId > number_of_reviews)
             {
                 return false;
             }
+
+            RandomAccessFile file = new RandomAccessFile(directory + "//" + REVIEWS_DATA, "rw");
 
             file.seek((reviewId - 1) * 31);
 

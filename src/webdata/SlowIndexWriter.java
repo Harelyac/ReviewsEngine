@@ -22,7 +22,7 @@ public class SlowIndexWriter {
 
     private static final String PRODUCTS_STRING_FILENAME = "products_lex_string";
     private static final String PRODUCTS_TABLE_FILENAME = "products_lex_table";
-    private static final String PRODUCTS_POSTING_LISTS = "posting_lists_of_productsIds";
+    private static final String PRODUCTS_POSTING_LISTS = "posting_lists_of_products";
 
 
 
@@ -53,19 +53,32 @@ public class SlowIndexWriter {
         // parse and write all types of index files in chunks according to review limit
         parseFile(inputFile, dir);
 
-
-        // merge intermediate files
+        // merge reviews index file
         mergeReviewsData(dir);
 
 
+        // merge the product ids index files
         fileCounter = this.chunkNumber;
-
-        // merge every two inverted index of different chunks
-        File folder = new File(dir);
-        while (folder.listFiles().length > 7){
-            mergeInvertedIndexes(dir);
+        for (int i = 1; i < chunkNumber; i++){
+            mergeInvertedIndexes(dir, "products_");
         }
 
+        // merge the words index files
+        fileCounter = this.chunkNumber;
+
+        for (int i = 1; i < chunkNumber; i++){
+            mergeInvertedIndexes(dir, "words_");
+        }
+
+        // change names of files to the original form
+
+        File folder = new File(dir);
+        for (File file : folder.listFiles()) {
+            if (!file.getName().equals("reviews_data.txt")){ //fixme - check the ending later
+                File newfile = new File(dir + "\\" + file.getName().substring(0,file.getName().lastIndexOf("_")) + file.getName().substring(file.getName().lastIndexOf(".")));
+                file.renameTo(newfile);
+            }
+        }
     }
 
 
@@ -192,83 +205,78 @@ public class SlowIndexWriter {
 
     private void mergeReviewsData(String dir){
         File folder = new File(dir);
-        File output = new File(dir + "//" + "reviews_data.txt");
-        int tokenCount = 0;
+        try {
+            RandomAccessFile output = new RandomAccessFile(dir + "//" + "reviews_data.txt", "rw");
 
-        for (File file : folder.listFiles()) {
-            if (file.getName().startsWith("reviews_data_")) {
-                try {
-                    // first getting all lines from intermediate file
-                    List <String> curr_file_lines = Files.readAllLines(Paths.get(file.getPath()), StandardCharsets.ISO_8859_1);
-                    Files.write(output.toPath(), curr_file_lines.subList(0, curr_file_lines.size() - 1), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            int tokenCount = 0;
 
-                    // get directly to the last line
-                    RandomAccessFile direct_access = new RandomAccessFile(file.getPath(), "rw");
-                    direct_access.seek(REVIEWS_NUMBER_LIMIT * 31);
-                    tokenCount += direct_access.readInt();
-                    direct_access.close();
+            for (File file : folder.listFiles()) {
+                if (file.getName().startsWith("reviews_data_")) {
+                    try {
+                        // first getting all lines from intermediate file
+                        //List <String> curr_file_lines = Files.readAllLines(Paths.get(file.getPath()), StandardCharsets.ISO_8859_1);
+                        //Files.write(output.toPath(), curr_file_lines.subList(0, curr_file_lines.size() - 1), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 
-                    // delete the intermediate file
-                    file.delete();
-                } catch (IOException e) {
-                    e.printStackTrace();
+                        // get directly to the last line
+                        RandomAccessFile direct_access = new RandomAccessFile(file.getPath(), "rw");
+
+                        int line_counter = 0;
+                        while (line_counter < REVIEWS_NUMBER_LIMIT) {
+                            byte [] line = new byte[31];
+                            direct_access.read(line);
+                            output.write(line);
+                            line_counter++;
+                        }
+
+                        direct_access.seek(REVIEWS_NUMBER_LIMIT * 31);
+                        tokenCount += direct_access.readInt();
+                        direct_access.close();
+
+                        // delete the intermediate file
+                        file.delete();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
-        }
 
-        try {
-            RandomAccessFile direct_access = new RandomAccessFile(dir + "//" + "reviews_data.txt", "rw");
-            direct_access.seek(direct_access.length());
-            direct_access.writeInt(tokenCount);
-        } catch (IOException e) {
+            try {
+                output.seek(output.length());
+                output.writeInt(tokenCount);
+                output.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        catch (Exception e){
             e.printStackTrace();
         }
+
     }
 
-    private void mergeInvertedIndexes(String dir){
-        ArrayList<List<Map<String, Integer>>> wordsTypeTables = new ArrayList<>();
+    private void mergeInvertedIndexes(String dir, String filename){
+        ArrayList<List<Map<String, Integer>>> tokensTypeTables = new ArrayList<>();
         ArrayList<String> wordsTypeStrings = new ArrayList<>();
-
-
-        ArrayList<List<Map<String, Integer>>> productIDsTypeTables = new ArrayList<>();
-        ArrayList<String> productIDsTypeStrings = new ArrayList<>();
-
         ArrayList<String> numbering = new ArrayList<>();
 
         try
         {
             fileCounter++;
 
-
             File folder = new File(dir);
             for (File file : folder.listFiles()) {
-                if (file.getName().startsWith("words_lex_string_") && wordsTypeStrings.size() != 2) {
+                if (file.getName().startsWith(filename + "lex_string_") && wordsTypeStrings.size() != 2) {
                     RandomAccessFile br = new RandomAccessFile(file, "r");
                     wordsTypeStrings.add(br.readLine().replaceAll("[^\\p{Graph}\r\t\n ]", ""));
-                    numbering.add(String.valueOf(file.getName().charAt(file.getName().length() - 5)));
+                    numbering.add(String.valueOf(file.getName().charAt(file.getName().length() - 5))); // keep track on the input files numbers
                     br.close();
                     file.delete();
                 }
 
-                if (file.getName().startsWith("words_lex_table_") && wordsTypeTables.size() != 2) {
+                if (file.getName().startsWith(filename + "lex_table_") && tokensTypeTables.size() != 2) {
                     FileInputStream fileIn = new FileInputStream(file);
                     ObjectInputStream objectIn = new ObjectInputStream(fileIn);
-                    wordsTypeTables.add((List<Map<String, Integer>>)objectIn.readObject());
-                    objectIn.close();
-                    file.delete();
-                }
-
-                if (file.getName().startsWith("products_lex_string_") && productIDsTypeStrings.size() != 2) {
-                    RandomAccessFile br = new RandomAccessFile(file, "r");
-                    productIDsTypeStrings.add(br.readLine().replaceAll("[^\\p{Graph}\r\t\n ]", ""));
-                    br.close();
-                    file.delete();
-                }
-
-                if (file.getName().startsWith("products_lex_table_") && productIDsTypeTables.size() != 2) {
-                    FileInputStream fileIn = new FileInputStream(file);
-                    ObjectInputStream objectIn = new ObjectInputStream(fileIn);
-                    productIDsTypeTables.add((List<Map<String, Integer>>)objectIn.readObject());
+                    tokensTypeTables.add((List<Map<String, Integer>>)objectIn.readObject());
                     objectIn.close();
                     file.delete();
                 }
@@ -282,8 +290,8 @@ public class SlowIndexWriter {
 
         // Some initialization before merge process
 
-        int size1 = wordsTypeTables.get(0).size();
-        int size2 = wordsTypeTables.get(1).size();
+        int size1 = tokensTypeTables.get(0).size();
+        int size2 = tokensTypeTables.get(1).size();
 
         int remainder1 = size1 % 4;
         int remainder2 = size2 % 4;
@@ -315,7 +323,7 @@ public class SlowIndexWriter {
 
         // load block from string 1
 
-        int startBlock1 = wordsTypeTables.get(0).get(ptr1).get("term_ptr") + 1;
+        int startBlock1 = tokensTypeTables.get(0).get(ptr1).get("term_ptr") + 1;
 
         if (ptr1 + block_size1 > size1)
         {
@@ -324,7 +332,7 @@ public class SlowIndexWriter {
         }
         else
         {
-            startNextBlcok1 = wordsTypeTables.get(0).get(ptr1 + block_size1).get("term_ptr") + 1;
+            startNextBlcok1 = tokensTypeTables.get(0).get(ptr1 + block_size1).get("term_ptr") + 1;
         }
 
 
@@ -335,7 +343,7 @@ public class SlowIndexWriter {
 
         // load block from string 2
 
-        int startBlock2 = wordsTypeTables.get(1).get(ptr2).get("term_ptr") + 1;
+        int startBlock2 = tokensTypeTables.get(1).get(ptr2).get("term_ptr") + 1;
 
         if (ptr2 + block_size2 > size2)
         {
@@ -344,7 +352,7 @@ public class SlowIndexWriter {
         }
         else
         {
-            startNextBlcok2 = wordsTypeTables.get(1).get(ptr2 + block_size2).get("term_ptr") + 1;
+            startNextBlcok2 = tokensTypeTables.get(1).get(ptr2 + block_size2).get("term_ptr") + 1;
         }
 
 
@@ -366,7 +374,7 @@ public class SlowIndexWriter {
                     break;
                 }
 
-                startBlock1 = wordsTypeTables.get(0).get(ptr1).get("term_ptr") + 1;
+                startBlock1 = tokensTypeTables.get(0).get(ptr1).get("term_ptr") + 1;
                 // check if we are going to be on the last block
                 // if last block is also 4 words size
                 if (remainder1 == 0){
@@ -378,7 +386,7 @@ public class SlowIndexWriter {
                 }
                 else
                 {
-                    startNextBlcok1 = wordsTypeTables.get(0).get(ptr1 + block_size1).get("term_ptr") + 1;
+                    startNextBlcok1 = tokensTypeTables.get(0).get(ptr1 + block_size1).get("term_ptr") + 1;
                 }
 
                 block1 = wordsTypeStrings.get(0).substring(startBlock1, startNextBlcok1);
@@ -393,7 +401,7 @@ public class SlowIndexWriter {
                 if (ptr2 >= size2){
                     break;
                 }
-                startBlock2 = wordsTypeTables.get(1).get(ptr2).get("term_ptr") + 1;
+                startBlock2 = tokensTypeTables.get(1).get(ptr2).get("term_ptr") + 1;
                 if (remainder2 == 0){
                     remainder2 = 4;
                 }
@@ -404,7 +412,7 @@ public class SlowIndexWriter {
                 }
                 else
                 {
-                    startNextBlcok2 = wordsTypeTables.get(1).get(ptr2 + block_size2).get("term_ptr") + 1;
+                    startNextBlcok2 = tokensTypeTables.get(1).get(ptr2 + block_size2).get("term_ptr") + 1;
                 }
 
                 block2 = wordsTypeStrings.get(1).substring(startBlock2, startNextBlcok2);
@@ -418,82 +426,129 @@ public class SlowIndexWriter {
             // we reach end of one of the input blocks
             while (outputBlock.size() != 4 && index1 != block_size1 + 1 && index2 != block_size2 + 1)
             {
-                int result = (prefix1 + block_words1[index1]).compareTo(prefix2 + block_words2[index2]);
+                int result;
+                String suffix1 = "", suffix2 = "";
+
+                // if we got no suffixes
+                if (block_words1.length > 1){
+                    suffix1 = block_words1[index1];
+                }
+
+                if (block_words2.length > 1){
+                    suffix2 = block_words2[index2];
+                }
+
+                result = (prefix1 + suffix1).compareTo(prefix2 + suffix2);
 
                 // words are equal
                 if (result == 0)
                 {
-                    outputBlock.add(prefix1 + block_words1[index1]);
+                    outputBlock.add(prefix1 + suffix1);
                     Map<String, Integer> row = new HashMap<>();
 
-                    // sum freqs from both tables
-                    row.put("total_freqs", wordsTypeTables.get(0).get(ptr1 + index1 - 1).get("total_freqs") + wordsTypeTables.get(1).get(ptr2 + index2 - 1).get("total_freqs"));
 
-                    // fetch reviewID and freqs from both pl files and merge them and then put on the output file and save the location on output table
-                    int startReviewsID1 = wordsTypeTables.get(0).get(ptr1 + index1 - 1).get("pl_reviewsIds_ptr");
-                    int startFreqs1 = wordsTypeTables.get(0).get(ptr1 + index1 - 1).get("pl_reviewsFreqs_ptr");
-                    long startNextReviewsID1;
+                    // read posting list's pointers
+                    int startReviewsID1 = tokensTypeTables.get(0).get(ptr1 + index1 - 1).get("pl_reviewsIds_ptr");
+
+                    int startNextReviewsID1;
                     if (ptr1 + index1 == size1){
                         startNextReviewsID1 = 0;
                     }
-                    else{
-                        startNextReviewsID1 = wordsTypeTables.get(0).get(ptr1 + index1).get("pl_reviewsIds_ptr");
+                    else
+                    {
+                        startNextReviewsID1 = tokensTypeTables.get(0).get(ptr1 + index1).get("pl_reviewsIds_ptr");
+                    }
+
+                    int startFreqs1 = 0;
+
+                    if (filename.equals("words_")){
+                        // sum freqs from both tables
+                        row.put("total_freqs", tokensTypeTables.get(0).get(ptr1 + index1 - 1).get("total_freqs") + tokensTypeTables.get(1).get(ptr2 + index2 - 1).get("total_freqs"));
+                        startFreqs1 = tokensTypeTables.get(0).get(ptr1 + index1 - 1).get("pl_reviewsFreqs_ptr");
                     }
 
 
 
-                    int startReviewsID2 = wordsTypeTables.get(1).get(ptr2 + index2 - 1).get("pl_reviewsIds_ptr");
-                    int startFreqs2 = wordsTypeTables.get(1).get(ptr2 + index2 - 1).get("pl_reviewsFreqs_ptr");
-                    long startNextReviewsID2;
+                    int startReviewsID2 = tokensTypeTables.get(1).get(ptr2 + index2 - 1).get("pl_reviewsIds_ptr");
+
+                    int startNextReviewsID2; // alert - changed fron long to int
                     if (ptr2 + index2 == size2){
                         startNextReviewsID2 = 0;
                     }
                     else{
-                        startNextReviewsID2 = wordsTypeTables.get(1).get(ptr2 + index2).get("pl_reviewsIds_ptr");
+                        startNextReviewsID2 = tokensTypeTables.get(1).get(ptr2 + index2).get("pl_reviewsIds_ptr");
                     }
 
+                    int startFreqs2 = 0;
+
+                    if (filename.equals("words_")){
+                        startFreqs2 = tokensTypeTables.get(1).get(ptr2 + index2 - 1).get("pl_reviewsFreqs_ptr");
+                    }
 
                     try {
-                        RandomAccessFile file1 = new RandomAccessFile(dir + "//" +  "posting_lists_of_words_" + numbering.get(0) + ".txt", "rw");
-
+                        RandomAccessFile file1 = new RandomAccessFile(dir + "//" +  "posting_lists_of_" + filename + numbering.get(0) + ".txt", "rw");
                         // read reviewsID
                         file1.seek(startReviewsID1);
+
+                        if (startNextReviewsID1 == 0){
+                            startNextReviewsID1 = (int)file1.length();
+                        }
+
+                        // if we are on products
+                        if (startFreqs1 == 0){
+                            startFreqs1 = startNextReviewsID1;
+                        }
+
+
                         byte [] reviewIdsBytes1 = new byte[(int)(startFreqs1 - startReviewsID1)];
                         file1.read(reviewIdsBytes1);
                         List<Integer> reviewIds1 = new ArrayList<>();
                         reviewIds1 = GroupVarint.decode(reviewIdsBytes1);
 
+                        List<Integer> reviewFreqs1 = null;
+
                         // read freqs
-                        file1.seek(startFreqs1);
-                        if (startNextReviewsID1 == 0){
-                            startNextReviewsID1 = file1.length();
+                        if (filename.equals("words_")){
+                            file1.seek(startFreqs1);
+                            byte [] reviewFreqsBytes1 = new byte[(int)(startNextReviewsID1 - startFreqs1)];
+                            file1.read(reviewFreqsBytes1);
+                            reviewFreqs1 = new ArrayList<>();
+                            reviewFreqs1 = GroupVarint.decode(reviewFreqsBytes1);
                         }
-                        byte [] reviewFreqsBytes1 = new byte[(int)(startNextReviewsID1 - startFreqs1)];
-                        file1.read(reviewFreqsBytes1);
+
                         file1.close();
-                        List<Integer> reviewFreqs1 = new ArrayList<>();
-                        reviewFreqs1 = GroupVarint.decode(reviewFreqsBytes1);
 
-
-                        RandomAccessFile file2 = new RandomAccessFile(dir +  "//" + "posting_lists_of_words_" + numbering.get(1) + ".txt", "rw");
-
+                        RandomAccessFile file2 = new RandomAccessFile(dir +  "//" + "posting_lists_of_" + filename + numbering.get(1) + ".txt", "rw");
                         file2.seek(startReviewsID2);
+
+                        if (startNextReviewsID2 == 0){
+                            startNextReviewsID2 = (int)file2.length();
+                        }
+
+                        // if we are on products
+                        if (startFreqs2 == 0){
+                            startFreqs2 = startNextReviewsID2;
+                        }
+
                         byte [] reviewIdsBytes2 = new byte[(int)(startFreqs2 - startReviewsID2)];
                         file2.read(reviewIdsBytes2);
                         List<Integer> reviewIds2 = new ArrayList<>();
                         reviewIds2 = GroupVarint.decode(reviewIdsBytes2);
 
+                        List<Integer> reviewFreqs2 = null;
 
-                        file2.seek(startFreqs2);
-                        if (startNextReviewsID2 == 0){
-                            startNextReviewsID2 = file2.length();
+                        if (filename.equals("words_")){
+                            file2.seek(startFreqs2);
+                            byte [] reviewFreqsBytes2 = new byte[(int)(startNextReviewsID2 - startFreqs2)];
+                            file2.read(reviewFreqsBytes2);
+                            reviewFreqs2 = new ArrayList<>();
+                            reviewFreqs2 = GroupVarint.decode(reviewFreqsBytes2);
+                            reviewFreqs1.addAll(reviewFreqs2);
                         }
-                        byte [] reviewFreqsBytes2 = new byte[(int)(startNextReviewsID2 - startFreqs2)];
-                        file2.read(reviewFreqsBytes2);
-                        file2.close();
-                        List<Integer> reviewFreqs2 = new ArrayList<>();
-                        reviewFreqs2 = GroupVarint.decode(reviewFreqsBytes2);
 
+                        file2.close();
+
+                        // add them all
                         int sum = 0;
                         // first sum all reviewsID differences of 1
                         for (int i = 0; i < reviewIds1.size(); i ++){
@@ -502,22 +557,27 @@ public class SlowIndexWriter {
                         reviewIds2.set(0, reviewIds2.get(0) - sum);
                         // add it
                         reviewIds1.addAll(reviewIds2);
-                        reviewFreqs1.addAll(reviewFreqs2);
+
+
 
                         // write the re-encoded arrays
-                        RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_words" + "_" + Integer.toString(fileCounter)  + ".txt", "rw");
+                        RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter)  + ".txt", "rw");
                         file.seek(file.length()); // append mode :)
 
                         byte[] encoded_reveiwsIds, encoded_freqs = new byte[0];
                         encoded_reveiwsIds = GroupVarint.encode(reviewIds1);
-                        encoded_freqs = GroupVarint.encode(reviewFreqs1);
+
 
                         row.put("pl_reviewsIds_ptr", pl_ptr);
                         file.write(encoded_reveiwsIds);
                         pl_ptr += encoded_reveiwsIds.length;
-                        row.put("pl_reviewsFreqs_ptr", pl_ptr);
-                        file.write(encoded_freqs);
-                        pl_ptr += encoded_freqs.length;
+
+                        if (filename.equals("words_")){
+                            encoded_freqs = GroupVarint.encode(reviewFreqs1);
+                            row.put("pl_reviewsFreqs_ptr", pl_ptr);
+                            file.write(encoded_freqs);
+                            pl_ptr += encoded_freqs.length;
+                        }
                         file.close();
                     }
 
@@ -532,58 +592,79 @@ public class SlowIndexWriter {
 
                 // we create row with new term_ptr of output str and new reviewId_ptr and new freqs_ptr
                 else if (result < 0){
-                    outputBlock.add(prefix1 + block_words1[index1]);
+                    outputBlock.add(prefix1 + suffix1);
                     Map<String, Integer> row = new HashMap<>();
 
-                    row.put("total_freqs", wordsTypeTables.get(0).get(ptr1 + index1 - 1).get("total_freqs"));
+                    // read posting list's pointers
+                    int startReviewsID1 = tokensTypeTables.get(0).get(ptr1 + index1 - 1).get("pl_reviewsIds_ptr");
 
-                    int startReviewsID1 = wordsTypeTables.get(0).get(ptr1 + index1 - 1).get("pl_reviewsIds_ptr");
-                    int startFreqs1 = wordsTypeTables.get(0).get(ptr1 + index1 - 1).get("pl_reviewsFreqs_ptr");
-                    long startNextReviewsID1;
-
+                    int startNextReviewsID1;
                     if (ptr1 + index1 == size1){
                         startNextReviewsID1 = 0;
-                        block_size1 = remainder1;
                     }
                     else{
-                        startNextReviewsID1 = wordsTypeTables.get(0).get(ptr1 + index1).get("pl_reviewsIds_ptr");
+                        startNextReviewsID1 = tokensTypeTables.get(0).get(ptr1 + index1).get("pl_reviewsIds_ptr");
+                    }
+
+                    int startFreqs1 = 0;
+
+                    if (filename.equals("words_")){
+                        // sum freqs from both tables
+                        row.put("total_freqs", tokensTypeTables.get(0).get(ptr1 + index1 - 1).get("total_freqs"));
+                        startFreqs1 = tokensTypeTables.get(0).get(ptr1 + index1 - 1).get("pl_reviewsFreqs_ptr");
                     }
 
                     try
                     {
-                        RandomAccessFile file1 = new RandomAccessFile(dir + "//" + "posting_lists_of_words_" + numbering.get(0) + ".txt", "rw");
-
+                        RandomAccessFile file1 = new RandomAccessFile(dir + "//" +  "posting_lists_of_" + filename + numbering.get(0) + ".txt", "rw");
+                        // read reviewsID
                         file1.seek(startReviewsID1);
+
+                        if (startNextReviewsID1 == 0){
+                            startNextReviewsID1 = (int)file1.length();
+                        }
+
+                        // if we are on products
+                        if (startFreqs1 == 0){
+                            startFreqs1 = startNextReviewsID1;
+                        }
+
                         byte [] reviewIdsBytes1 = new byte[(int)(startFreqs1 - startReviewsID1)];
                         file1.read(reviewIdsBytes1);
                         List<Integer> reviewIds1 = new ArrayList<>();
                         reviewIds1 = GroupVarint.decode(reviewIdsBytes1);
 
+                        List<Integer> reviewFreqs1 = null;
 
-                        file1.seek(startFreqs1);
-                        if (startNextReviewsID1 == 0){
-                            startNextReviewsID1 = file1.length();
+                        // read freqs
+                        if (filename.equals("words_")){
+                            file1.seek(startFreqs1);
+                            byte [] reviewFreqsBytes1 = new byte[(int)(startNextReviewsID1 - startFreqs1)];
+                            file1.read(reviewFreqsBytes1);
+                            reviewFreqs1 = new ArrayList<>();
+                            reviewFreqs1 = GroupVarint.decode(reviewFreqsBytes1);
                         }
-                        byte [] reviewFreqsBytes1 = new byte[(int)(startNextReviewsID1 - startFreqs1)];
-                        file1.read(reviewFreqsBytes1);
+
                         file1.close();
-                        List<Integer> reviewFreqs1 = new ArrayList<>();
-                        reviewFreqs1 = GroupVarint.decode(reviewFreqsBytes1);
 
                         // write the re-encoded arrays
-                        RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_words" + "_" + Integer.toString(fileCounter)  + ".txt", "rw");
+                        RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter)  + ".txt", "rw");
                         file.seek(file.length()); // append mode :)
 
                         byte[] encoded_reveiwsIds, encoded_freqs = new byte[0];
                         encoded_reveiwsIds = GroupVarint.encode(reviewIds1);
-                        encoded_freqs = GroupVarint.encode(reviewFreqs1);
+
 
                         row.put("pl_reviewsIds_ptr", pl_ptr);
                         file.write(encoded_reveiwsIds);
                         pl_ptr += encoded_reveiwsIds.length;
-                        row.put("pl_reviewsFreqs_ptr", pl_ptr);
-                        file.write(encoded_freqs);
-                        pl_ptr += encoded_freqs.length;
+
+                        if (filename.equals("words_")){
+                            encoded_freqs = GroupVarint.encode(reviewFreqs1);
+                            row.put("pl_reviewsFreqs_ptr", pl_ptr);
+                            file.write(encoded_freqs);
+                            pl_ptr += encoded_freqs.length;
+                        }
                         file.close();
                     }
 
@@ -597,59 +678,77 @@ public class SlowIndexWriter {
 
                 // we create row with new term_ptr of output str and new reviewId_ptr and new freqs_ptr
                 else {
-                    outputBlock.add(prefix2 + block_words2[index2]);
+                    outputBlock.add(prefix2 + suffix2);
                     Map<String, Integer> row = new HashMap<>();
 
-                    row.put("total_freqs", wordsTypeTables.get(1).get(ptr2 + index2 - 1).get("total_freqs"));
 
-                    int startReviewsID2 = wordsTypeTables.get(1).get(ptr2 + index2 - 1).get("pl_reviewsIds_ptr");
-                    int startFreqs2 = wordsTypeTables.get(1).get(ptr2 + index2 - 1).get("pl_reviewsFreqs_ptr");
-                    long startNextReviewsID2;
-                    if (ptr2 + index2 == size2){
+                    int startReviewsID2 = tokensTypeTables.get(1).get(ptr2 + index2 - 1).get("pl_reviewsIds_ptr");
+
+                    int startNextReviewsID2; // alert - changed fron long to int
+                    if (ptr2 + index2 == size2)
+                    {
                         startNextReviewsID2 = 0;
-                        block_size2 = remainder2;
                     }
                     else{
-                        startNextReviewsID2 = wordsTypeTables.get(1).get(ptr2 + index2).get("pl_reviewsIds_ptr");
+                        startNextReviewsID2 = tokensTypeTables.get(1).get(ptr2 + index2).get("pl_reviewsIds_ptr");
+                    }
+
+                    int startFreqs2 = 0;
+
+                    if (filename.equals("words_")){
+                        row.put("total_freqs", tokensTypeTables.get(1).get(ptr2 + index2 - 1).get("total_freqs"));
+                        startFreqs2 = tokensTypeTables.get(1).get(ptr2 + index2 - 1).get("pl_reviewsFreqs_ptr");
                     }
 
 
                     try
                     {
-                        RandomAccessFile file2 = new RandomAccessFile(dir + "//" + "posting_lists_of_words_" + numbering.get(1) + ".txt", "rw");
-
+                        RandomAccessFile file2 = new RandomAccessFile(dir +  "//" + "posting_lists_of_" + filename + numbering.get(1) + ".txt", "rw");
                         file2.seek(startReviewsID2);
+                        if (startNextReviewsID2 == 0){
+                            startNextReviewsID2 = (int)file2.length(); // alert - casted to int
+                        }
+
+                        // if we are on products
+                        if (startFreqs2 == 0){
+                            startFreqs2 = startNextReviewsID2;
+                        }
+
                         byte [] reviewIdsBytes2 = new byte[(int)(startFreqs2 - startReviewsID2)];
                         file2.read(reviewIdsBytes2);
                         List<Integer> reviewIds2 = new ArrayList<>();
                         reviewIds2 = GroupVarint.decode(reviewIdsBytes2);
 
+                        List<Integer> reviewFreqs2 = null;
 
-                        file2.seek(startFreqs2);
-                        if (startNextReviewsID2 == 0){
-                            startNextReviewsID2 = file2.length();
+                        if (filename.equals("words_")){
+                            file2.seek(startFreqs2);
+                            byte [] reviewFreqsBytes2 = new byte[(int)(startNextReviewsID2 - startFreqs2)];
+                            file2.read(reviewFreqsBytes2);
+                            reviewFreqs2 = new ArrayList<>();
+                            reviewFreqs2 = GroupVarint.decode(reviewFreqsBytes2);
                         }
-                        byte [] reviewFreqsBytes2 = new byte[(int)(startNextReviewsID2 - startFreqs2)];
-                        file2.read(reviewFreqsBytes2);
+
                         file2.close();
 
-                        List<Integer> reviewFreqs2 = new ArrayList<>();
-                        reviewFreqs2 = GroupVarint.decode(reviewFreqsBytes2);
-
                         // write the re-encoded arrays
-                        RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_words" + "_" + Integer.toString(fileCounter)  + ".txt", "rw");
+                        RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter)  + ".txt", "rw");
                         file.seek(file.length()); // append mode :)
 
                         byte[] encoded_reveiwsIds, encoded_freqs = new byte[0];
                         encoded_reveiwsIds = GroupVarint.encode(reviewIds2);
-                        encoded_freqs = GroupVarint.encode(reviewFreqs2);
+
 
                         row.put("pl_reviewsIds_ptr", pl_ptr);
                         file.write(encoded_reveiwsIds);
                         pl_ptr += encoded_reveiwsIds.length;
-                        row.put("pl_reviewsFreqs_ptr", pl_ptr);
-                        file.write(encoded_freqs);
-                        pl_ptr += encoded_freqs.length;
+
+                        if (filename.equals("words_")){
+                            encoded_freqs = GroupVarint.encode(reviewFreqs2);
+                            row.put("pl_reviewsFreqs_ptr", pl_ptr);
+                            file.write(encoded_freqs);
+                            pl_ptr += encoded_freqs.length;
+                        }
                         file.close();
                     }
 
@@ -666,90 +765,110 @@ public class SlowIndexWriter {
             }
         }
 
+
         // if we end table 1
-        if (ptr1 + index1 - 1 == size1 -1){
+        if (ptr1 >= size1){
             // and we still got words from table 2 to work with
-            if (ptr2 + index2 - 1 < size2 - 1) {
-                while (ptr2 != size2)
+            if (ptr2 + index2 - 2 < size2 - 1) {
+                while (ptr2 + index2 - 2 != size2 - 1)
                 {
                     // check if we need to load another block
                     if (index2 == block_size2 + 1)
                     {
-                        ptr2 += block_size2;
-                        index2 = 1;
-                        if (ptr2 == size2)
+                        // if we are on last block
+                        if (ptr2 + block_size2 == size2 - remainder2)
                         {
-                            break;
-                        }
-                        startBlock2 = wordsTypeTables.get(1).get(ptr2).get("term_ptr") + 1;
-                        // check if we are going to be on the last block
-                        if (ptr2 == size2 - remainder2)
-                        {
+                            ptr2 += block_size2;
                             startNextBlcok2 = wordsTypeStrings.get(1).length();
                             block_size2 = remainder2;
+                            index2 = 1;
                         }
-                        else
-                        {
-                            startNextBlcok2 = wordsTypeTables.get(1).get(ptr2 + block_size2).get("term_ptr") + 1;
+                        else{
+                            ptr2 += block_size2;
+                            index2 = 1;
+                            startNextBlcok2 = tokensTypeTables.get(1).get(ptr2 + block_size2).get("term_ptr") + 1;
                         }
+
+                        startBlock2 = tokensTypeTables.get(1).get(ptr2).get("term_ptr") + 1;
                         block2 = wordsTypeStrings.get(1).substring(startBlock2, startNextBlcok2);
                         block_words2 = block2.split("([@]+)|([*]+)|([|]+)");
                         prefix2 = block_words1[0];
                     }
                     else
                     {
-                        outputBlock.add(prefix2 + block_words2[index2]);
+                        String suffix2 = "";
+                        if (block_words2.length > 1){
+                            suffix2 = block_words2[index2];
+                        }
+                        outputBlock.add(prefix2 + suffix2);
                         Map<String, Integer> row = new HashMap<>();
 
-                        // sum freqs from both tables
-                        row.put("total_freqs", wordsTypeTables.get(1).get(ptr2 + index2 - 1).get("total_freqs"));
 
-                        int startReviewsID2 = wordsTypeTables.get(1).get(ptr2 + index2 - 1).get("pl_reviewsIds_ptr");
-                        int startFreqs2 = wordsTypeTables.get(1).get(ptr2 + index2- 1).get("pl_reviewsFreqs_ptr");
-                        long startNextReviewsID2;
+                        int startReviewsID2 = tokensTypeTables.get(1).get(ptr2 + index2 - 1).get("pl_reviewsIds_ptr");
+
+                        int startNextReviewsID2; // alert - changed fron long to int
                         if (ptr2 + index2 == size2){
                             startNextReviewsID2 = 0;
-                            block_size2 = remainder2;
                         }
-                        else
-                        {
-                            startNextReviewsID2 = wordsTypeTables.get(1).get(ptr2 + index2).get("pl_reviewsIds_ptr");
+                        else{
+                            startNextReviewsID2 = tokensTypeTables.get(1).get(ptr2 + index2).get("pl_reviewsIds_ptr");
+                        }
+
+                        int startFreqs2 = 0;
+
+                        if (filename.equals("words_")) {
+                            // sum freqs from both tables
+                            row.put("total_freqs", tokensTypeTables.get(1).get(ptr2 + index2 - 1).get("total_freqs"));
+                            startFreqs2 = tokensTypeTables.get(1).get(ptr2 + index2 - 1).get("pl_reviewsFreqs_ptr");
                         }
 
                         try {
-                            RandomAccessFile file2 = new RandomAccessFile(dir + "//" + "posting_lists_of_words_" + numbering.get(1) + ".txt", "rw");
-
+                            RandomAccessFile file2 = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + numbering.get(1) + ".txt", "rw");
                             file2.seek(startReviewsID2);
+                            if (startNextReviewsID2 == 0){
+                                startNextReviewsID2 = (int)file2.length(); // alert - casted to int
+                            }
+
+                            // if we are on products
+                            if (startFreqs2 == 0){
+                                startFreqs2 = startNextReviewsID2;
+                            }
+
                             byte [] reviewIdsBytes2 = new byte[(int)(startFreqs2 - startReviewsID2)];
                             file2.read(reviewIdsBytes2);
                             List<Integer> reviewIds2 = new ArrayList<>();
                             reviewIds2 = GroupVarint.decode(reviewIdsBytes2);
 
 
-                            file2.seek(startFreqs2);
-                            if (startNextReviewsID2 == 0){
-                                startNextReviewsID2 = file2.length();
+                            List<Integer> reviewFreqs2 = null;
+
+                            if (filename.equals("words_")){
+                                file2.seek(startFreqs2);
+                                byte [] reviewFreqsBytes2 = new byte[(int)(startNextReviewsID2 - startFreqs2)];
+                                file2.read(reviewFreqsBytes2);
+                                reviewFreqs2 = new ArrayList<>();
+                                reviewFreqs2 = GroupVarint.decode(reviewFreqsBytes2);
                             }
-                            byte [] reviewFreqsBytes2 = new byte[(int)(startNextReviewsID2 - startFreqs2)];
-                            file2.read(reviewFreqsBytes2);
+
                             file2.close();
-                            List<Integer> reviewFreqs2 = new ArrayList<>();
-                            reviewFreqs2 = GroupVarint.decode(reviewFreqsBytes2);
 
                             // write the re-encoded arrays
-                            RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_words" + "_" + Integer.toString(fileCounter)  + ".txt", "rw");
+                            RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter)  + ".txt", "rw");
                             file.seek(file.length()); // append mode :)
 
                             byte[] encoded_reveiwsIds, encoded_freqs = new byte[0];
                             encoded_reveiwsIds = GroupVarint.encode(reviewIds2);
-                            encoded_freqs = GroupVarint.encode(reviewFreqs2);
 
                             row.put("pl_reviewsIds_ptr", pl_ptr);
                             file.write(encoded_reveiwsIds);
                             pl_ptr += encoded_reveiwsIds.length;
-                            row.put("pl_reviewsFreqs_ptr", pl_ptr);
-                            file.write(encoded_freqs);
-                            pl_ptr += encoded_freqs.length;
+
+                            if (filename.equals("words_")){
+                                encoded_freqs = GroupVarint.encode(reviewFreqs2);
+                                row.put("pl_reviewsFreqs_ptr", pl_ptr);
+                                file.write(encoded_freqs);
+                                pl_ptr += encoded_freqs.length;
+                            }
                             file.close();
                         }
 
@@ -758,7 +877,7 @@ public class SlowIndexWriter {
                         }
 
                         outputTable.add(row);
-                        index1++;
+                        index2++;
                     }
                     if (outputBlock.size() == 4)
                     {
@@ -772,90 +891,112 @@ public class SlowIndexWriter {
 
 
         // if we end table 2
-        if (ptr2 + index2 - 1 == size2 - 1) {
-            // and we still got words from table 1 to work with
-            if (ptr1 + index1 - 1 < size1 - 1) {
-                while (ptr1 != size1) {
+        if (ptr2 >= size2){
+            // and we still got words from table 2 to work with
+            if (ptr1 + index1 - 2 < size1 - 1) {
+                while (ptr1 + index1 - 2 != size1 - 1)
+                {
                     // check if we need to load another block
                     if (index1 == block_size1 + 1)
                     {
-                        ptr1 += block_size1;
-                        index1 = 1;
-                        if (ptr1 == size1)
+                        // if we are on last block
+                        if (ptr1 + block_size1 == size1 - remainder1)
                         {
-                            break;
-                        }
-                        startBlock1 = wordsTypeTables.get(0).get(ptr1).get("term_ptr") + 1;
-                        // check if we are going to be on the last block
-                        if (ptr1 == size1 - remainder1)
-                        {
+                            ptr1 += block_size1;
                             startNextBlcok1 = wordsTypeStrings.get(0).length();
                             block_size1 = remainder1;
+                            index1 = 1;
                         }
-                        else
-                        {
-                            startNextBlcok1 = wordsTypeTables.get(0).get(ptr1 + block_size1).get("term_ptr") + 1;
+                        else{
+                            ptr1 += block_size1;
+                            index1 = 1;
+                            startNextBlcok1 = tokensTypeTables.get(0).get(ptr1 + block_size1).get("term_ptr") + 1;
                         }
+
+                        startBlock1 = tokensTypeTables.get(0).get(ptr1).get("term_ptr") + 1;
                         block1 = wordsTypeStrings.get(0).substring(startBlock1, startNextBlcok1);
                         block_words1 = block1.split("([@]+)|([*]+)|([|]+)");
                         prefix1 = block_words1[0];
                     }
                     else
                     {
-                        outputBlock.add(prefix1 + block_words1[index1]);
+                        String suffix1 = "";
+                        if (block_words1.length > 1){
+                            suffix1 = block_words1[index1];
+                        }
+                        outputBlock.add(prefix1 + suffix1);
                         Map<String, Integer> row = new HashMap<>();
 
-                        // sum freqs from both tables
-                        row.put("total_freqs", wordsTypeTables.get(0).get(ptr1 + index1 - 1).get("total_freqs"));
 
-                        int startReviewsID1 = wordsTypeTables.get(0).get(ptr1 + index1 - 1).get("pl_reviewsIds_ptr");
-                        int startFreqs1 = wordsTypeTables.get(0).get(ptr1 + index1 - 1).get("pl_reviewsFreqs_ptr");
-                        long startNextReviewsID1;
+                        // read posting list's pointers
+                        int startReviewsID1 = tokensTypeTables.get(0).get(ptr1 + index1 - 1).get("pl_reviewsIds_ptr");
+
+                        int startNextReviewsID1;
                         if (ptr1 + index1 == size1){
                             startNextReviewsID1 = 0;
-                            block_size1 = remainder1;
                         }
-                        else
-                        {
-                            startNextReviewsID1 = wordsTypeTables.get(0).get(ptr1 + index1).get("pl_reviewsIds_ptr");
+                        else{
+                            startNextReviewsID1 = tokensTypeTables.get(0).get(ptr1 + index1).get("pl_reviewsIds_ptr");
+                        }
+
+                        int startFreqs1 = 0;
+
+                        if (filename.equals("words_")){
+                            // sum freqs from both tables
+                            row.put("total_freqs", tokensTypeTables.get(0).get(ptr1 + index1 - 1).get("total_freqs"));
+                            startFreqs1 = tokensTypeTables.get(0).get(ptr1 + index1 - 1).get("pl_reviewsFreqs_ptr");
                         }
 
                         try {
-                            RandomAccessFile file1 = new RandomAccessFile(dir + "//" + "posting_lists_of_words_" + numbering.get(0) + ".txt", "rw");
-
+                            RandomAccessFile file1 = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + numbering.get(0) + ".txt", "rw");
                             file1.seek(startReviewsID1);
+
+                            if (startNextReviewsID1 == 0){
+                                startNextReviewsID1 = (int)file1.length();
+                            }
+
+                            // if we are on products
+                            if (startFreqs1 == 0){
+                                startFreqs1 = startNextReviewsID1;
+                            }
+
                             byte [] reviewIdsBytes1 = new byte[(int)(startFreqs1 - startReviewsID1)];
                             file1.read(reviewIdsBytes1);
                             List<Integer> reviewIds1 = new ArrayList<>();
                             reviewIds1 = GroupVarint.decode(reviewIdsBytes1);
 
+                            List<Integer> reviewFreqs1 = null;
 
-                            file1.seek(startFreqs1);
-                            if (startNextReviewsID1 == 0){
-                                startNextReviewsID1 = file1.length();
+                            // read freqs
+                            if (filename.equals("words_")){
+                                file1.seek(startFreqs1);
+                                byte [] reviewFreqsBytes1 = new byte[(int)(startNextReviewsID1 - startFreqs1)];
+                                file1.read(reviewFreqsBytes1);
+                                reviewFreqs1 = new ArrayList<>();
+                                reviewFreqs1 = GroupVarint.decode(reviewFreqsBytes1);
                             }
-                            byte [] reviewFreqsBytes1 = new byte[(int)(startNextReviewsID1 - startFreqs1)];
-                            file1.read(reviewFreqsBytes1);
+
                             file1.close();
-                            List<Integer> reviewFreqs1 = new ArrayList<>();
-                            reviewFreqs1 = GroupVarint.decode(reviewFreqsBytes1);
-
-
 
                             // write the re-encoded arrays
-                            RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_words" + "_" + Integer.toString(fileCounter)  + ".txt", "rw");
+                            RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter)  + ".txt", "rw");
                             file.seek(file.length()); // append mode :)
 
                             byte[] encoded_reveiwsIds, encoded_freqs = new byte[0];
                             encoded_reveiwsIds = GroupVarint.encode(reviewIds1);
-                            encoded_freqs = GroupVarint.encode(reviewFreqs1);
+
 
                             row.put("pl_reviewsIds_ptr", pl_ptr);
                             file.write(encoded_reveiwsIds);
                             pl_ptr += encoded_reveiwsIds.length;
-                            row.put("pl_reviewsFreqs_ptr", pl_ptr);
-                            file.write(encoded_freqs);
-                            pl_ptr += encoded_freqs.length;
+
+                            if (filename.equals("words_")){
+                                encoded_freqs = GroupVarint.encode(reviewFreqs1);
+                                row.put("pl_reviewsFreqs_ptr", pl_ptr);
+                                file.write(encoded_freqs);
+                                pl_ptr += encoded_freqs.length;
+                            }
+
                             file.close();
                         }
 
@@ -872,6 +1013,7 @@ public class SlowIndexWriter {
                         outputBlock = new ArrayList<>();
                     }
                 }
+
             }
         }
 
@@ -880,8 +1022,8 @@ public class SlowIndexWriter {
         }
 
         // here we delete the posting list files with number according to numbering - FIXME - it does not delete
-        File pl1 = new File(dir +  "//" + "posting_lists_of_words_" + numbering.get(0) + ".txt");
-        File pl2 = new File(dir +  "//" + "posting_lists_of_words_" + numbering.get(1) + ".txt");
+        File pl1 = new File(dir +  "//" + "posting_lists_of_" + filename + numbering.get(0) + ".txt");
+        File pl2 = new File(dir +  "//" + "posting_lists_of_" + filename + numbering.get(1) + ".txt");
 
         pl1.delete();
         pl2.delete();
@@ -913,14 +1055,14 @@ public class SlowIndexWriter {
 
 
         try{
-            RandomAccessFile file = new RandomAccessFile(dir + "//" + "words_lex_string" + "_" + Integer.toString(fileCounter) + ".txt", "rw");
+            RandomAccessFile file = new RandomAccessFile(dir + "//" + filename + "lex_string_"  + Integer.toString(fileCounter) + ".txt", "rw");
             file.setLength(0);
             file.writeChars(outputStr.toString());
             file.close();
 
             // writing the full table into serialized file
             List<Map<String, Integer>> rows = new ArrayList<>(outputTable);
-            FileOutputStream fos = new FileOutputStream(dir + "//" + "words_lex_table" + "_" + Integer.toString(fileCounter)  + ".ser");
+            FileOutputStream fos = new FileOutputStream(dir + "//" + filename + "lex_table_" + Integer.toString(fileCounter)  + ".ser");
             ObjectOutputStream oos = new ObjectOutputStream(fos);
             oos.writeObject(rows);
             oos.close();

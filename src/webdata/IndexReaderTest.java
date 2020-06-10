@@ -11,9 +11,9 @@ import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndexReaderTest {
-	final static String dir = "C:\\Users\\harelyac\\OneDrive\\Desktop\\InfoRetrieval\\ReviewsEngine\\src\\webdata";
+	final static String dir = "C:\\Users\\harelyac\\OneDrive\\Desktop\\InfoRetrieval\\ReviewsEngine\\src\\files";
 	final static String indexDir = dir;
-	final static String inputFile = "src\\webdata\\Books.txt";
+	final static String inputFile = "src\\webdata\\1000.txt";
 	static private IndexReader indexReader;
 	static private SlowIndexWriter indexWriter;
 	private final String msgInt = "fail on input: %d";
@@ -21,8 +21,8 @@ class IndexReaderTest {
 
 	@BeforeAll
 	static void before() {
-		indexWriter = new SlowIndexWriter();
-		indexWriter.slowWrite(inputFile, indexDir);
+		//indexWriter = new SlowIndexWriter();
+		//indexWriter.slowWrite(inputFile, indexDir);
 		indexReader = new IndexReader(indexDir);
 	}
 

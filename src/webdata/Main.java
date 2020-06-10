@@ -9,13 +9,19 @@ import java.util.stream.Stream;
 public class Main {
     public static void main(String[] args) throws IOException {
 
-        SlowIndexWriter siw = new SlowIndexWriter();
-        siw.slowWrite("src\\webdata\\1000.txt", "src\\files");
+    /*    SlowIndexWriter siw = new SlowIndexWriter();
+        siw.slowWrite("src\\webdata\\1000.txt", "src\\files");*/
         IndexReader ir = new IndexReader("src\\files");
 
-        System.out.println(ir.getProductReviews("B006K2ZZ7K"));
+       /* System.out.println(ir.getTokenFrequency("Greatest"));
+        System.out.println("========================================");
+        System.out.println(ir.getTokenCollectionFrequency("Greatest"));*/
 
-        //test();
+        Enumeration<Integer> enumy = ir.getProductReviews("B006K2ZZ7K");
+
+        while(enumy.hasMoreElements()){
+            System.out.println(enumy.nextElement());
+        }
     }
 
     public static void test(){
