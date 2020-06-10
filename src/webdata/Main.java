@@ -9,8 +9,8 @@ import java.util.stream.Stream;
 public class Main {
     public static void main(String[] args) throws IOException {
 
-    /*    SlowIndexWriter siw = new SlowIndexWriter();
-        siw.slowWrite("src\\webdata\\1000.txt", "src\\files");*/
+        SlowIndexWriter siw = new SlowIndexWriter();
+        siw.slowWrite("C:\\Users\\harelyac\\OneDrive\\Desktop\\Movies_&_TV.txt", "src\\files");
         IndexReader ir = new IndexReader("src\\files");
 
        /* System.out.println(ir.getTokenFrequency("Greatest"));

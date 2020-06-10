@@ -14,7 +14,7 @@ import static webdata.Lexicon.getSuffix;
 
 public class SlowIndexWriter {
     private static final int BLOCK_SIZE = 4;
-    private static final int REVIEWS_NUMBER_LIMIT = 250;
+    private static final int REVIEWS_NUMBER_LIMIT = 10000;
 
     private static final String WORDS_STRING_FILENAME = "words_lex_string";
     private static final String WORDS_TABLE_FILENAME = "words_lex_table";
@@ -53,25 +53,27 @@ public class SlowIndexWriter {
         // parse and write all types of index files in chunks according to review limit
         parseFile(inputFile, dir);
 
-        // merge reviews index file
-        mergeReviewsData(dir);
 
+        if (this.chunkNumber > 1){
+            // merge reviews index file
+            mergeReviewsData(dir);
 
-        // merge the product ids index files
-        fileCounter = this.chunkNumber;
-        for (int i = 1; i < chunkNumber; i++){
-            mergeInvertedIndexes(dir, "products_");
+            // merge the product ids index files
+            fileCounter = this.chunkNumber;
+            for (int i = 1; i < chunkNumber; i++){
+                mergeInvertedIndexes(dir, "products_");
+            }
+
+            // merge the words index files
+            fileCounter = this.chunkNumber;
+
+            for (int i = 1; i < chunkNumber; i++){
+                mergeInvertedIndexes(dir, "words_");
+            }
         }
 
-        // merge the words index files
-        fileCounter = this.chunkNumber;
-
-        for (int i = 1; i < chunkNumber; i++){
-            mergeInvertedIndexes(dir, "words_");
-        }
 
         // change names of files to the original form
-
         File folder = new File(dir);
         for (File file : folder.listFiles()) {
             if (!file.getName().equals("reviews_data.txt")){ //fixme - check the ending later
@@ -111,8 +113,7 @@ public class SlowIndexWriter {
             ReviewData review = new ReviewData();
             int reviewCount = 0;
 
-            while ((line = br.readLine()) != null || reviewCount == REVIEWS_NUMBER_LIMIT) {
-
+            while ((line = br.readLine()) != null && chunkNumber < 10) {
                 // if we reached the limit on number of reviews, then we should write posting list and
                 // lexicon to disk for this specific "chunk"
                 if (reviewCount == REVIEWS_NUMBER_LIMIT){
@@ -138,9 +139,9 @@ public class SlowIndexWriter {
 
                 switch (firstToken) {
                     case "product":
-                        this.reviewId += 1;
                         token = getProductIdToken(tokenizer);
                         if (token.equals("productid")) {
+                            this.reviewId += 1;
                             token = getProductIdToken(tokenizer);
                             productIdIndex.updateIndex(token, reviewId);
                             review.productId = token;
@@ -268,7 +269,7 @@ public class SlowIndexWriter {
                 if (file.getName().startsWith(filename + "lex_string_") && wordsTypeStrings.size() != 2) {
                     RandomAccessFile br = new RandomAccessFile(file, "r");
                     wordsTypeStrings.add(br.readLine().replaceAll("[^\\p{Graph}\r\t\n ]", ""));
-                    numbering.add(String.valueOf(file.getName().charAt(file.getName().length() - 5))); // keep track on the input files numbers
+                    numbering.add(String.valueOf(file.getName().substring(file.getName().lastIndexOf("_") + 1, file.getName().indexOf(".")))); // keep track on the input files numbers
                     br.close();
                     file.delete();
                 }
