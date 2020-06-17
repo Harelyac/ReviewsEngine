@@ -11,18 +11,18 @@ import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IndexReaderTest {
-	final static String dir = "C:\\Users\\harelyac\\OneDrive\\Desktop\\InfoRetrieval\\ReviewsEngine\\src\\files";
+	final static String dir = "src/files";
 	final static String indexDir = dir;
 	final static String inputFile = "src\\webdata\\1000.txt";
 	static private IndexReader indexReader;
-	static private SlowIndexWriter indexWriter;
+	static private IndexWriter indexWriter;
 	private final String msgInt = "fail on input: %d";
 	private final String msgStr = "fail on input: %s";
 
 	@BeforeAll
 	static void before() {
-		//indexWriter = new SlowIndexWriter();
-		//indexWriter.slowWrite(inputFile, indexDir);
+		//indexWriter = new IndexWriter();
+		//indexWriter.write(inputFile, indexDir);
 		indexReader = new IndexReader(indexDir);
 	}
 

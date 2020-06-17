@@ -1,20 +1,11 @@
 package webdata;
 import java.io.*;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-import java.security.spec.RSAOtherPrimeInfo;
 import java.util.*;
-import java.nio.file.Files;
-import webdata.Lexicon;
 
-import static webdata.Lexicon.getBlockCommonPrefix;
-import static webdata.Lexicon.getSuffix;
 
-public class SlowIndexWriter {
+public class IndexWriter {
     private static final int BLOCK_SIZE = 4;
-    private static final int REVIEWS_NUMBER_LIMIT = 10000;
+    private static final int REVIEWS_NUMBER_LIMIT = 100000;
 
     private static final String WORDS_STRING_FILENAME = "words_lex_string";
     private static final String WORDS_TABLE_FILENAME = "words_lex_table";
@@ -24,6 +15,7 @@ public class SlowIndexWriter {
     private static final String PRODUCTS_TABLE_FILENAME = "products_lex_table";
     private static final String PRODUCTS_POSTING_LISTS = "posting_lists_of_products";
 
+    private static final int POSTING_LIST_LIMIT = 100000000; // size of output posting list file in bytes
 
 
     /**
@@ -40,7 +32,7 @@ public class SlowIndexWriter {
     int chunkNumber = 0;
     int fileCounter = 0;
 
-    public SlowIndexWriter() {
+    public IndexWriter() {
         this.productIdIndex = new InvertedIndex();
         this.wordsIndex = new InvertedIndex();
         this.reviewsIndex = new ReviewsIndex();
@@ -49,7 +41,14 @@ public class SlowIndexWriter {
         this.wordsLex = new Lexicon(BLOCK_SIZE);
     }
 
-    public void slowWrite(String inputFile, String dir) {
+    public void write(String inputFile, String dir) {
+        // here we create the directory if it does not exist for the first time and only
+        File directory = new File(dir);
+        if (!directory.exists())
+        {
+            boolean result = directory.mkdir();
+        }
+
         // parse and write all types of index files in chunks according to review limit
         parseFile(inputFile, dir);
 
@@ -77,7 +76,7 @@ public class SlowIndexWriter {
         File folder = new File(dir);
         for (File file : folder.listFiles()) {
             if (!file.getName().equals("reviews_data.txt")){ //fixme - check the ending later
-                File newfile = new File(dir + "\\" + file.getName().substring(0,file.getName().lastIndexOf("_")) + file.getName().substring(file.getName().lastIndexOf(".")));
+                File newfile = new File(dir + "//" + file.getName().substring(0,file.getName().lastIndexOf("_")) + file.getName().substring(file.getName().lastIndexOf(".")));
                 file.renameTo(newfile);
             }
         }
@@ -85,14 +84,6 @@ public class SlowIndexWriter {
 
 
     private void writeIndexFiles(String dir, int chunk_number) {
-
-        // here we create the directory if it does not exist for the first time and only
-        File directory = new File(dir);
-        if (!directory.exists())
-        {
-            boolean result = directory.mkdir();
-        }
-
         // writing reviews data to disk
         reviewsIndex.write(dir, chunk_number);
 
@@ -113,7 +104,7 @@ public class SlowIndexWriter {
             ReviewData review = new ReviewData();
             int reviewCount = 0;
 
-            while ((line = br.readLine()) != null && chunkNumber < 10) {
+            while ((line = br.readLine()) != null) {
                 // if we reached the limit on number of reviews, then we should write posting list and
                 // lexicon to disk for this specific "chunk"
                 if (reviewCount == REVIEWS_NUMBER_LIMIT){
@@ -187,6 +178,10 @@ public class SlowIndexWriter {
                     }
                 }
             }
+            if (0 < reviewCount && reviewCount <= REVIEWS_NUMBER_LIMIT){
+                chunkNumber++;
+                writeIndexFiles(dir, chunkNumber);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -222,14 +217,14 @@ public class SlowIndexWriter {
                         RandomAccessFile direct_access = new RandomAccessFile(file.getPath(), "rw");
 
                         int line_counter = 0;
-                        while (line_counter < REVIEWS_NUMBER_LIMIT) {
+                        while (line_counter < direct_access.length() / 31) {
                             byte [] line = new byte[31];
                             direct_access.read(line);
                             output.write(line);
                             line_counter++;
                         }
 
-                        direct_access.seek(REVIEWS_NUMBER_LIMIT * 31);
+                        direct_access.seek((direct_access.length() / 31) * 31);
                         tokenCount += direct_access.readInt();
                         direct_access.close();
 
@@ -320,14 +315,17 @@ public class SlowIndexWriter {
         int startNextBlcok2 = 0;
 
         int pl_ptr = 0;
-
+        int pl_size = 0;
 
         // load block from string 1
 
         int startBlock1 = tokensTypeTables.get(0).get(ptr1).get("term_ptr") + 1;
 
-        if (ptr1 + block_size1 > size1)
+        if (ptr1 + block_size1 >= size1)
         {
+            if (remainder1 == 0){
+                remainder1 = 4;
+            }
             block_size1 = remainder1;
             startNextBlcok1 =  wordsTypeStrings.get(0).length();
         }
@@ -346,8 +344,11 @@ public class SlowIndexWriter {
 
         int startBlock2 = tokensTypeTables.get(1).get(ptr2).get("term_ptr") + 1;
 
-        if (ptr2 + block_size2 > size2)
+        if (ptr2 + block_size2 >= size2)
         {
+            if (remainder2 == 0){
+                remainder2 = 4;
+            }
             block_size2 = remainder2;
             startNextBlcok2 =  wordsTypeStrings.get(1).length();
         }
@@ -363,10 +364,33 @@ public class SlowIndexWriter {
 
 
         // init new output block
-        List<String> outputBlock = new ArrayList<>();;
+        List<String> outputBlock = new ArrayList<>();
+
+        // list of posting list data - reviews ids + reviews freqs (in word case)
+        // used mainly to deal with less transfer times
+        //List<byte []> outputPostingList = new ArrayList<>();
+
+
+        try {
+            FileOutputStream fout = new FileOutputStream(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter) + ".txt");
+            BufferedOutputStream bout = new BufferedOutputStream(fout);
 
         // run on both tables until we reach head of last block
         while (ptr1 != size1 || ptr2 != size2){ // fixme
+                if (pl_size > POSTING_LIST_LIMIT) { // we need to check the avg size of each array of bytes
+                    //RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter) + ".txt", "rw");
+                    //file.seek(file.length()); // append mode :)
+                    //for (byte [] encoded_data : outputPostingList){
+                    //    file.write(encoded_data);
+                    //}
+                    //outputPostingList = new ArrayList<>();
+                    pl_size = 0;
+                        //file.close();
+                    bout.flush();
+
+                }
+
+
             // check if we reached end of block 1
             if (index1 == block_size1 + 1){ // the +1 is just because on block we have prefix and suffixes to extra for prefix
                 ptr1 += block_size1;
@@ -430,12 +454,13 @@ public class SlowIndexWriter {
                 int result;
                 String suffix1 = "", suffix2 = "";
 
-                // if we got no suffixes
-                if (block_words1.length > 1){
+                // if we got no suffixes - fixme - i did a plaster here - maybe fix later
+                if (block_words1.length > 1 && block_words1.length -1 == block_size1){
+
                     suffix1 = block_words1[index1];
                 }
 
-                if (block_words2.length > 1){
+                if (block_words2.length > 1 && block_words2.length -1 == block_size2){
                     suffix2 = block_words2[index2];
                 }
 
@@ -562,24 +587,29 @@ public class SlowIndexWriter {
 
 
                         // write the re-encoded arrays
-                        RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter)  + ".txt", "rw");
-                        file.seek(file.length()); // append mode :)
+                        //RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter)  + ".txt", "rw");
+                        //file.seek(file.length()); // append mode :)
 
                         byte[] encoded_reveiwsIds, encoded_freqs = new byte[0];
                         encoded_reveiwsIds = GroupVarint.encode(reviewIds1);
 
-
                         row.put("pl_reviewsIds_ptr", pl_ptr);
-                        file.write(encoded_reveiwsIds);
+                        //file.write(encoded_reveiwsIds);
+                        //outputPostingList.add(encoded_reveiwsIds);
+                        bout.write(encoded_reveiwsIds);
                         pl_ptr += encoded_reveiwsIds.length;
+                        pl_size += encoded_reveiwsIds.length;
 
                         if (filename.equals("words_")){
                             encoded_freqs = GroupVarint.encode(reviewFreqs1);
                             row.put("pl_reviewsFreqs_ptr", pl_ptr);
-                            file.write(encoded_freqs);
+                            //file.write(encoded_freqs);
+                            //outputPostingList.add(encoded_freqs);
+                            bout.write(encoded_freqs);
                             pl_ptr += encoded_freqs.length;
+                            pl_size += encoded_freqs.length;
                         }
-                        file.close();
+                        //file.close();
                     }
 
                     catch (Exception e){
@@ -649,24 +679,28 @@ public class SlowIndexWriter {
                         file1.close();
 
                         // write the re-encoded arrays
-                        RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter)  + ".txt", "rw");
-                        file.seek(file.length()); // append mode :)
+                        //RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter)  + ".txt", "rw");
+                        //file.seek(file.length()); // append mode :)
 
                         byte[] encoded_reveiwsIds, encoded_freqs = new byte[0];
                         encoded_reveiwsIds = GroupVarint.encode(reviewIds1);
 
 
                         row.put("pl_reviewsIds_ptr", pl_ptr);
-                        file.write(encoded_reveiwsIds);
+                        //file.write(encoded_reveiwsIds);
+                        //outputPostingList.add(encoded_reveiwsIds);
+                        bout.write(encoded_reveiwsIds);
                         pl_ptr += encoded_reveiwsIds.length;
 
                         if (filename.equals("words_")){
                             encoded_freqs = GroupVarint.encode(reviewFreqs1);
                             row.put("pl_reviewsFreqs_ptr", pl_ptr);
-                            file.write(encoded_freqs);
+                            //file.write(encoded_freqs);
+                            //outputPostingList.add(encoded_freqs);
+                            bout.write(encoded_freqs);
                             pl_ptr += encoded_freqs.length;
                         }
-                        file.close();
+                        //file.close();
                     }
 
                     catch (Exception e){
@@ -733,24 +767,30 @@ public class SlowIndexWriter {
                         file2.close();
 
                         // write the re-encoded arrays
-                        RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter)  + ".txt", "rw");
-                        file.seek(file.length()); // append mode :)
+                        //RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter)  + ".txt", "rw");
+                        //file.seek(file.length()); // append mode :)
 
                         byte[] encoded_reveiwsIds, encoded_freqs = new byte[0];
                         encoded_reveiwsIds = GroupVarint.encode(reviewIds2);
 
 
                         row.put("pl_reviewsIds_ptr", pl_ptr);
-                        file.write(encoded_reveiwsIds);
+                        //file.write(encoded_reveiwsIds);
+                        //outputPostingList.add(encoded_reveiwsIds);
+                        bout.write(encoded_reveiwsIds);
                         pl_ptr += encoded_reveiwsIds.length;
+                        pl_size += encoded_reveiwsIds.length;
 
                         if (filename.equals("words_")){
                             encoded_freqs = GroupVarint.encode(reviewFreqs2);
                             row.put("pl_reviewsFreqs_ptr", pl_ptr);
-                            file.write(encoded_freqs);
+                            //file.write(encoded_freqs);
+                            //outputPostingList.add(encoded_freqs);
+                            bout.write(encoded_freqs);
                             pl_ptr += encoded_freqs.length;
+                            pl_size += encoded_freqs.length;
                         }
-                        file.close();
+                        //file.close();
                     }
 
                     catch (Exception e){
@@ -767,12 +807,31 @@ public class SlowIndexWriter {
         }
 
 
+
         // if we end table 1
         if (ptr1 >= size1){
             // and we still got words from table 2 to work with
-            if (ptr2 + index2 - 2 < size2 - 1) {
-                while (ptr2 + index2 - 2 != size2 - 1)
+            if (ptr2 + index2 - 1 < size2 - 1) {
+                while (ptr2 + index2 - 1 != size2 - 1)
                 {
+                    if (pl_size > POSTING_LIST_LIMIT) { // we need to check the avg size of each array of bytes
+                        /*try {
+                            RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter) + ".txt", "rw");
+                            file.seek(file.length()); // append mode :)
+                            for (byte [] encoded_data : outputPostingList){
+                                file.write(encoded_data);
+                            }
+                            outputPostingList = new ArrayList<>();
+                            pl_size = 0;
+                            file.close();
+                        }
+                        catch (Exception e){
+                            e.printStackTrace();
+                        }*/
+                        pl_size = 0;
+                        bout.flush();
+                    }
+
                     // check if we need to load another block
                     if (index2 == block_size2 + 1)
                     {
@@ -798,9 +857,10 @@ public class SlowIndexWriter {
                     else
                     {
                         String suffix2 = "";
-                        if (block_words2.length > 1){
+                        if (block_words2.length > 1 && block_words2.length -1 == block_size2){
                             suffix2 = block_words2[index2];
                         }
+
                         outputBlock.add(prefix2 + suffix2);
                         Map<String, Integer> row = new HashMap<>();
 
@@ -854,23 +914,29 @@ public class SlowIndexWriter {
                             file2.close();
 
                             // write the re-encoded arrays
-                            RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter)  + ".txt", "rw");
-                            file.seek(file.length()); // append mode :)
+                            //RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter)  + ".txt", "rw");
+                            //file.seek(file.length()); // append mode :)
 
                             byte[] encoded_reveiwsIds, encoded_freqs = new byte[0];
                             encoded_reveiwsIds = GroupVarint.encode(reviewIds2);
 
                             row.put("pl_reviewsIds_ptr", pl_ptr);
-                            file.write(encoded_reveiwsIds);
+                            //file.write(encoded_reveiwsIds);
+                            //outputPostingList.add(encoded_reveiwsIds);
+                            bout.write(encoded_reveiwsIds);
                             pl_ptr += encoded_reveiwsIds.length;
+                            pl_size += encoded_reveiwsIds.length;
 
                             if (filename.equals("words_")){
                                 encoded_freqs = GroupVarint.encode(reviewFreqs2);
                                 row.put("pl_reviewsFreqs_ptr", pl_ptr);
-                                file.write(encoded_freqs);
+                                //file.write(encoded_freqs);
+                                //outputPostingList.add(encoded_freqs);
+                                bout.write(encoded_freqs);
                                 pl_ptr += encoded_freqs.length;
+                                pl_size += encoded_freqs.length;
                             }
-                            file.close();
+                            //file.close();
                         }
 
                         catch (Exception e){
@@ -894,9 +960,28 @@ public class SlowIndexWriter {
         // if we end table 2
         if (ptr2 >= size2){
             // and we still got words from table 2 to work with
-            if (ptr1 + index1 - 2 < size1 - 1) {
-                while (ptr1 + index1 - 2 != size1 - 1)
+            if (ptr1 + index1 - 1 < size1 - 1) {
+                while (ptr1 + index1 - 1 != size1 - 1)
                 {
+                    //System.out.println(pl_size);
+                    if (pl_size > POSTING_LIST_LIMIT) { // we need to check the avg size of each array of bytes
+                        /*try {
+                            RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter) + ".txt", "rw");
+                            file.seek(file.length()); // append mode :)
+                            for (byte [] encoded_data : outputPostingList){
+                                file.write(encoded_data);
+                            }
+                            outputPostingList = new ArrayList<>();
+                            pl_size = 0;
+                            file.close();
+                        }
+                        catch (Exception e){
+                            e.printStackTrace();
+                        }*/
+                        pl_size = 0;
+                        bout.flush();
+                    }
+
                     // check if we need to load another block
                     if (index1 == block_size1 + 1)
                     {
@@ -922,7 +1007,7 @@ public class SlowIndexWriter {
                     else
                     {
                         String suffix1 = "";
-                        if (block_words1.length > 1){
+                        if (block_words1.length > 1 && block_words1.length -1 == block_size1){
                             suffix1 = block_words1[index1];
                         }
                         outputBlock.add(prefix1 + suffix1);
@@ -980,25 +1065,30 @@ public class SlowIndexWriter {
                             file1.close();
 
                             // write the re-encoded arrays
-                            RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter)  + ".txt", "rw");
-                            file.seek(file.length()); // append mode :)
+                            //RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter)  + ".txt", "rw");
+                            //file.seek(file.length()); // append mode :)
 
                             byte[] encoded_reveiwsIds, encoded_freqs = new byte[0];
                             encoded_reveiwsIds = GroupVarint.encode(reviewIds1);
 
 
                             row.put("pl_reviewsIds_ptr", pl_ptr);
-                            file.write(encoded_reveiwsIds);
+                            //file.write(encoded_reveiwsIds);
+                            //outputPostingList.add(encoded_reveiwsIds);
+                            bout.write(encoded_reveiwsIds);
                             pl_ptr += encoded_reveiwsIds.length;
+                            pl_size += encoded_reveiwsIds.length;
 
                             if (filename.equals("words_")){
                                 encoded_freqs = GroupVarint.encode(reviewFreqs1);
                                 row.put("pl_reviewsFreqs_ptr", pl_ptr);
-                                file.write(encoded_freqs);
+                                //file.write(encoded_freqs);
+                                //outputPostingList.add(encoded_freqs);
+                                bout.write(encoded_freqs);
                                 pl_ptr += encoded_freqs.length;
+                                pl_size += encoded_freqs.length;
                             }
-
-                            file.close();
+                            //file.close();
                         }
 
                         catch (Exception e){
@@ -1022,7 +1112,33 @@ public class SlowIndexWriter {
             outputBlocks.add(outputBlock);
         }
 
-        // here we delete the posting list files with number according to numbering - FIXME - it does not delete
+            // here we write the output posting list, if we still got somthing left on buffer
+            if (pl_size > 0){
+                bout.flush();
+            }
+            bout.close();
+            fout.close();
+        }
+
+        catch (Exception e){
+            e.printStackTrace();
+        }
+
+        /*try {
+            RandomAccessFile file = new RandomAccessFile(dir + "//" + "posting_lists_of_" + filename + Integer.toString(fileCounter) + ".txt", "rw");
+            file.seek(file.length()); // append mode :)
+            for (byte [] encoded_data : outputPostingList){
+                file.write(encoded_data);
+            }
+            outputPostingList = new ArrayList<>();
+            file.close();
+        }
+        catch (Exception e){
+            e.printStackTrace();
+        }*/
+
+
+        // here we delete the input posting lists files
         File pl1 = new File(dir +  "//" + "posting_lists_of_" + filename + numbering.get(0) + ".txt");
         File pl2 = new File(dir +  "//" + "posting_lists_of_" + filename + numbering.get(1) + ".txt");
 
@@ -1062,10 +1178,10 @@ public class SlowIndexWriter {
             file.close();
 
             // writing the full table into serialized file
-            List<Map<String, Integer>> rows = new ArrayList<>(outputTable);
+            //List<Map<String, Integer>> rows = new ArrayList<>(outputTable);
             FileOutputStream fos = new FileOutputStream(dir + "//" + filename + "lex_table_" + Integer.toString(fileCounter)  + ".ser");
             ObjectOutputStream oos = new ObjectOutputStream(fos);
-            oos.writeObject(rows);
+            oos.writeObject(outputTable);
             oos.close();
         }
         catch (Exception e){

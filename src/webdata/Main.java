@@ -1,27 +1,25 @@
 package webdata;
 
 import java.io.*;
-import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.stream.Stream;
 
 
 public class Main {
     public static void main(String[] args) throws IOException {
+        IndexWriter siw = new IndexWriter();
+        siw.write("C:/Users/harelyac/OneDrive/Desktop/InfoRetrieval/DataSets/1000.txt", "src/files");
+        IndexReader ir = new IndexReader("src/files");
 
-        SlowIndexWriter siw = new SlowIndexWriter();
-        siw.slowWrite("C:\\Users\\harelyac\\OneDrive\\Desktop\\Movies_&_TV.txt", "src\\files");
-        IndexReader ir = new IndexReader("src\\files");
-
-       /* System.out.println(ir.getTokenFrequency("Greatest"));
+    /*    System.out.println(ir.getTokenFrequency("Greatest"));
         System.out.println("========================================");
-        System.out.println(ir.getTokenCollectionFrequency("Greatest"));*/
+        System.out.println(ir.getTokenSizeOfReviews());*/
 
-        Enumeration<Integer> enumy = ir.getProductReviews("B006K2ZZ7K");
-
-        while(enumy.hasMoreElements()){
+        //Enumeration enumy = ir.getReviewsWithToken("ZuCchini");
+        Enumeration enumy = ir.getProductReviews("B006K2ZZ7K");
+        while (enumy.hasMoreElements()){
             System.out.println(enumy.nextElement());
         }
+
     }
 
     public static void test(){
