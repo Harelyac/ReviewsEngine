@@ -51,8 +51,6 @@ public class IndexWriter {
 
         // parse and write all types of index files in chunks according to review limit
         parseFile(inputFile, dir);
-
-
         if (this.chunkNumber > 1){
             // merge reviews index file
             mergeReviewsData(dir);

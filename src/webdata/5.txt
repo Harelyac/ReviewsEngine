@@ -1,0 +1,44 @@
+product/productId: B001E4KFG0
+review/userId: A3SGXH7AUHU8GW
+review/profileName: delmartian
+review/helpfulness: 1/1
+review/score: 5.0
+review/time: 1303862400
+review/summary: Good Quality Dog Food
+review/text: I have bought several of the Vitality canned dog food products.
+
+product/productId: B00813GRG4
+review/userId: A1D87F6ZCVE5NK
+review/profileName: dll pa
+review/helpfulness: 0/0
+review/score: 1.0
+review/time: 1346976000
+review/summary: Not as Advertised
+review/text: Products arrived labeled as Jumbo Salted Peanuts.
+
+product/productId: B000LQOCH0
+review/userId: ABXLMWJIXXAIN
+review/profileName: Natalia Corres "Natalia Corres"
+review/helpfulness: 1/1
+review/score: 4.0
+review/time: 1219017600
+review/summary: "Delight" says it all
+review/text: This is an ingredient that has been around a few centuries.
+
+product/productId: B000UA0QIQ
+review/userId: A395BORC6FGVXV
+review/profileName: Karl
+review/helpfulness: 3/3
+review/score: 2.0
+review/time: 1307923200
+review/summary: Cough Medicine
+review/text: If you are looking for the secret ingredient in a Robitussin I believe I have found it.
+
+product/productId: B006K2ZZ7K
+review/userId: A1UQRSCLF8GW1T
+review/profileName: Michael D. Bigham "M. Wassir"
+review/helpfulness: 0/0
+review/score: 5.0
+review/time: 1350777600
+review/summary: Great taffy
+review/text: Great taffy at a great price.

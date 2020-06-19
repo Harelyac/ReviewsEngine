@@ -21,8 +21,8 @@ class IndexReaderTest {
 
 	@BeforeAll
 	static void before() {
-		//indexWriter = new IndexWriter();
-		//indexWriter.write(inputFile, indexDir);
+		indexWriter = new IndexWriter();
+		indexWriter.write(inputFile, indexDir);
 		indexReader = new IndexReader(indexDir);
 	}
 

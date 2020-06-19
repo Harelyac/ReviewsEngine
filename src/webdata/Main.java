@@ -1,24 +1,43 @@
 package webdata;
 
 import java.io.*;
+import java.net.SocketOption;
 import java.util.*;
 
 
 public class Main {
     public static void main(String[] args) throws IOException {
         IndexWriter siw = new IndexWriter();
-        siw.write("C:/Users/harelyac/OneDrive/Desktop/InfoRetrieval/DataSets/1000.txt", "src/files");
+        siw.write("C:\\Users\\harelyac\\OneDrive\\Desktop\\InfoRetrieval\\ReviewsEngine\\src\\webdata\\1000.txt", "src/files");
         IndexReader ir = new IndexReader("src/files");
 
-    /*    System.out.println(ir.getTokenFrequency("Greatest"));
+        ReviewSearch rs = new ReviewSearch(ir);
+        List<String> query = new ArrayList<>();
+        query.add("I");
+        query.add("have");
+        query.add("several");
+        query.add("of");
+        query.add("the");
+        query.add("Vitality");
+        query.add("canned");
+
+        ArrayList<Integer> scores = Collections.list(rs.vectorSpaceSearch(Collections.enumeration(query), 5));
+
+        System.out.println(scores);
+
+        ArrayList<Integer> scores1 = Collections.list(rs.languageModelSearch(Collections.enumeration(query), 0.4, 5));
+
+        System.out.println(scores1);
+        /*System.out.println(ir.getTokenFrequency("Greatest"));
         System.out.println("========================================");
         System.out.println(ir.getTokenSizeOfReviews());*/
 
         //Enumeration enumy = ir.getReviewsWithToken("ZuCchini");
-        Enumeration enumy = ir.getProductReviews("B006K2ZZ7K");
+
+        /*Enumeration enumy = ir.getProductReviews("B006K2ZZ7K");
         while (enumy.hasMoreElements()){
             System.out.println(enumy.nextElement());
-        }
+        }*/
 
     }
 
