@@ -5,6 +5,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static java.util.Collections.list;
 import static java.util.Map.Entry.comparingByKey;
 import static java.util.Map.Entry.comparingByValue;
 
@@ -72,7 +73,7 @@ public class ReviewSearch {
 
 
 
-        ArrayList<String> query_list = Collections.list(query);
+        ArrayList<String> query_list = list(query);
 
         //List<String> distinct_query_list = query_list.stream()
                                             //.distinct()
@@ -101,7 +102,7 @@ public class ReviewSearch {
             query_vector.add(tf_idf);
 
             // here we also save term posting list for later
-            List<Integer> pl = Collections.list(ir.getReviewsWithToken(term));
+            List<Integer> pl = list(ir.getReviewsWithToken(term));
 
             int last_id = pl.get(Math.max(pl.size() - 2, 0));
             if (last_id > max_id) {
@@ -181,7 +182,7 @@ public class ReviewSearch {
          double cf; // aka log based
          double T = ir.getTokenSizeOfReviews();
 
-         ArrayList<String> query_list = Collections.list(query);
+         ArrayList<String> query_list = list(query);
 
          List<List<Integer>> postinglists_of_query_terms = new ArrayList<>();
 
@@ -197,7 +198,7 @@ public class ReviewSearch {
              probability_based_on_corpus.add(cf / T);
 
              // here we also save term posting list for later
-             List<Integer> pl = Collections.list(ir.getReviewsWithToken(term));
+             List<Integer> pl = list(ir.getReviewsWithToken(term));
 
              int last_id = pl.get(Math.max(pl.size() - 2, 0));
              if (last_id > max_id) {
@@ -255,7 +256,39 @@ public class ReviewSearch {
      * given query using a function of your choice
      * The list should be sorted by the ranking
      */public Collection<String> productSearch(Enumeration<String> query, int k) {
-         return Collections.EMPTY_LIST;
+
+         List<String> list_query = Collections.list(query);
+         List<String> chosen_products_id = new ArrayList<>();
+
+         while (chosen_products_id.size() < k){
+             Set<Integer> bag1 = new HashSet<>(Collections.list(vectorSpaceSearch(Collections.enumeration(list_query), 3*k)));
+             Set<Integer> bag2 = new HashSet<>(Collections.list(languageModelSearch(Collections.enumeration(list_query), 0.4, 3*k)));
+             bag1.retainAll(bag2);
+
+             Iterator<Integer> it = bag1.iterator();
+             while (it.hasNext()){
+                 int curr = it.next();
+                 if (ir.getReviewScore(curr) >= 1 || (ir.getReviewHelpfulnessNumerator(curr) / ir.getReviewHelpfulnessDenominator(curr)) >= 1){
+                     chosen_products_id.add(ir.getProductId(curr));
+                 }
+                 it.remove(); // either way
+             }
+         }
+
+         Map<String ,Integer> scores = new HashMap<>();
+         if (chosen_products_id.size() > k){
+             for (String id : chosen_products_id){
+                 scores.put(id, Collections.list(ir.getProductReviews(id)).size());
+             }
+         }
+
+         Map<String, Integer> sortedMap = scores.entrySet().stream()
+                 .sorted(Comparator.comparing((Function<Map.Entry<String, Integer>, Integer>) Map.Entry::getValue).reversed())
+                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+
+         List<String> ids = new ArrayList<>(sortedMap.keySet());
+
+         return ids.subList(0, Math.min(k, ids.size()));
      }
 }
 

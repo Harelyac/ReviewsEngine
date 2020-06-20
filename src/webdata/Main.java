@@ -13,21 +13,27 @@ public class Main {
 
         ReviewSearch rs = new ReviewSearch(ir);
         List<String> query = new ArrayList<>();
-        query.add("I");
-        query.add("have");
-        query.add("several");
-        query.add("of");
-        query.add("the");
-        query.add("Vitality");
-        query.add("canned");
+        query.add("It");
+        query.add("is");
+        query.add("a");
+        query.add("light");
+        query.add("citrus");
+        query.add("gelatin");
+        query.add("nuts");
 
-        ArrayList<Integer> scores = Collections.list(rs.vectorSpaceSearch(Collections.enumeration(query), 5));
+
+        Collection<String> products = rs.productSearch(Collections.enumeration(query), 11);
+        System.out.println(products);
+
+
+       /* ArrayList<Integer> scores = Collections.list(rs.vectorSpaceSearch(Collections.enumeration(query), 5));
 
         System.out.println(scores);
 
         ArrayList<Integer> scores1 = Collections.list(rs.languageModelSearch(Collections.enumeration(query), 0.4, 5));
 
-        System.out.println(scores1);
+        System.out.println(scores1);*/
+
         /*System.out.println(ir.getTokenFrequency("Greatest"));
         System.out.println("========================================");
         System.out.println(ir.getTokenSizeOfReviews());*/
